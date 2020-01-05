@@ -1,1 +1,7 @@
 # BayesLDA
+Author: Tianwen Ma, Jane Huggins, and Jian Kang
+
+Affiliation: Department of Biostatistics, University of Michigan
+
+## Abstract
+A brain-computer interface (BCI) is a device that allows the human brain to communicate with computers directly. This technology has been widely used for assisting disabled people to control a computer. The fundamental statistical problem in BCI is classification. In the electroencephalography (EEG) BCI system, the P300-event related potential (ERP) is an elicited response by alternating regular and target stimuli, which has been shown to be a reliable signal for BCI classification. Many machine learning methods have been adopted to construct accurate classifiers for P300-ERP, but few can provide insights on the underlying mechanism of the neural activity. In this work, we propose a new statistical method for BCI classification to model the conditional distributions of the EEG signals with the P300-ERP according to the design of the BCI system, from which the predictive probability of learning brain signals can be derived. Our method can detect the time periods where the EEG signals have a strong predictive power, providing a potential better understanding of the neural activity from different brain regions in response to a computer-interaction stimulus.  Extensive simulation studies and analyses of real BCI-EEG data demonstrate the advantages of the proposed methods compared with the existing alternatives. 
