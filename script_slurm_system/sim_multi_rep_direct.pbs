@@ -1,0 +1,14 @@
+#!/bin/bash
+####  PBS preamble
+
+#SBATCH --job-name=sim_multi_rep_direct
+#SBATCH --mail-user=mtianwen@umich.edu
+#SBATCH --mail-type=BEGIN,END,FAIL
+
+#SBATCH --cpus-per-task=2
+#SBATCH --mem=5g
+#SBATCH --time=30:00
+
+####  End PBS preamble
+
+python3 -m SIM_lda_select False

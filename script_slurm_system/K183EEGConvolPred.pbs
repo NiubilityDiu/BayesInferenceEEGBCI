@@ -1,0 +1,16 @@
+#!/bin/bash
+####  PBS preamble
+
+#SBATCH --job-name=MCMC
+#SBATCH --mail-user=mtianwen@umich.edu
+#SBATCH --mail-type=BEGIN,END,FAIL
+
+#SBATCH --cpus-per-task=6
+#SBATCH --mem=64g
+#SBATCH --time=1:00:00
+#SBATCH --account=jiankang
+#SBATCH --partition=standard
+
+####  End PBS preamble
+
+python3 -m EEG_convol_pred False 183 10 6 0 0

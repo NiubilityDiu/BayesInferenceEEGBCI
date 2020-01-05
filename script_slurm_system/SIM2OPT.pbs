@@ -1,0 +1,16 @@
+#!/bin/bash
+####  PBS preamble
+
+#SBATCH --job-name=SIM2OPT
+#SBATCH --mail-user=mtianwen@umich.edu
+#SBATCH --mail-type=BEGIN,END,FAIL
+
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=10g
+#SBATCH --time=1:00:00
+#SBATCH --account=jiankang
+#SBATCH --partition=standard
+
+####  End PBS preamble
+
+python3 -m SIM_convol_opt False sim2
