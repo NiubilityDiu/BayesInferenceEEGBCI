@@ -1,5 +1,6 @@
 # BayesLDA
 Author: Tianwen Ma, Jane Huggins, and Jian Kang
+
 Affiliation: Department of Biostatistics, University of Michigan
 
 ## Abstract
