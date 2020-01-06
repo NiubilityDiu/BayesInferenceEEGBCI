@@ -19,7 +19,7 @@ class XDAGibbs(EEGPreFun):
 
     def __init__(self, sigma_sq_delta, u,
                  mu_1_delta, mu_0_delta,
-                 a, b,  # weighted
+                 a, b,  # weights
                  kappa,
                  letter_dim, trn_repetition,
                  *args,  **kwargs):
@@ -133,7 +133,7 @@ class XDAGibbs(EEGPreFun):
             s_sq_est: array_like, (1, num_electrode), preliminary estimates from raw signals
         return:
         -----
-            A tuple containing five arrays,
+            A list of containing five arrays,
             delta_tar_mcmc, array_like, (1, num_electrode, u)
             delta_ntar_mcmc, array_like, (1, num_electrode, u)
             lambda_mcmc, array_like, (1, num_electrode)
