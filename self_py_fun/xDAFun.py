@@ -19,7 +19,7 @@ class XDAGibbs(EEGPreFun):
 
     def __init__(self, sigma_sq_delta, u,
                  mu_1_delta, mu_0_delta,
-                 a, b,  # weights
+                 a, b,  # weighted
                  kappa,
                  letter_dim, trn_repetition,
                  *args,  **kwargs):
@@ -133,7 +133,7 @@ class XDAGibbs(EEGPreFun):
             s_sq_est: array_like, (1, num_electrode), preliminary estimates from raw signals
         return:
         -----
-            A list of six arrays,
+            A tuple containing five arrays,
             delta_tar_mcmc, array_like, (1, num_electrode, u)
             delta_ntar_mcmc, array_like, (1, num_electrode, u)
             lambda_mcmc, array_like, (1, num_electrode)
@@ -161,19 +161,26 @@ class XDAGibbs(EEGPreFun):
 
         return delta_tar_mcmc, delta_ntar_mcmc, lambda_mcmc, gamma_mcmc, s_sq_mcmc, rho_mcmc
 
-    def block_diagonal_mat(self, gamma_mat):
+    def block_diagonal_mat(self, gamma_mat, channel_ids=None):
         r"""
-        :argument gamma_mat: array_like, (num_electrode, n_length):
+        :param channel_ids: integer array_like
+        :param gamma_mat: array_like, (num_electrode, n_length):
 
         :return:
-        -----
             diagonal gamma matrix, array_like, (num_electrode, n_length, n_length):
         """
-        assert gamma_mat.shape == (self.num_electrode, self.n_length), \
-            print('wrong channel dimension {}, should be {}'.format(gamma_mat.shape,
-                                                                    (self.num_electrode, self.n_length)))
-        gamma_mat = np.stack([np.diag(gamma_mat[i, :])
-                              for i in range(self.num_electrode)], axis=0)
+        if channel_ids is None:
+            assert gamma_mat.shape == (self.num_electrode, self.n_length), \
+                print('wrong channel dimension {}, should be {}'.format(gamma_mat.shape,
+                                                                        (self.num_electrode, self.n_length)))
+            gamma_mat = np.stack([np.diag(gamma_mat[i, :])
+                                  for i in range(self.num_electrode)], axis=0)
+        else:
+            assert gamma_mat.shape == (len(channel_ids), self.n_length), \
+                print('wrong channel dimension {}, should be {}'.format(gamma_mat.shape,
+                                                                        (len(channel_ids), self.n_length)))
+            gamma_mat = np.stack([np.diag(gamma_mat[i, :])
+                                  for i in range(len(channel_ids))], axis=0)
         return gamma_mat
 
     def update_delta_tar_post_lda_2(
@@ -599,13 +606,13 @@ class XDAGibbs(EEGPreFun):
     #
     #     return [out_prod_tar, out_prod_ntar]
 
-    def generate_proposal_ar1_pres_mat(self, sigma_sq, rho):
+    def generate_proposal_ar1_pres_mat(self, sigma_sq, rho, channel_ids=None):
         r"""
         args:
         -----
             sigma_sq: array_like, should have dimension (channel_dim,)
             rho: array_like, the auto-correlation, assumed between 0 and 1, should have dimension (channel_dim,)
-
+            channel_ids: integer array_like
         return:
         -----
             array_like
@@ -622,13 +629,16 @@ class XDAGibbs(EEGPreFun):
             The final precision matrix, P = U**(-1/2) @ Corr_inv @ U**(-1/2) if we have heterogeneous sigma_sq.
             https://mathoverflow.net/questions/65795/inverse-of-an-ar1-or-laplacian-or-kac-murdock-szegö-matrix/65819
         """
-        tri_diag_mat = np.zeros(shape=[self.num_electrode, self.n_length, self.n_length])
-
-        for e in range(self.num_electrode):
+        if channel_ids is None:
+            ee = self.num_electrode
+        else:
+            ee = len(channel_ids)
+        tri_diag_mat = np.zeros(shape=[ee, self.n_length, self.n_length])
+        for e in range(ee):
             first_col_e = np.zeros([self.n_length])
             first_col_e[1] = -rho[e]
             tri_diag_mat[e, ...] = self.create_toeplitz_cov_mat(sigma_sq=1.0, first_column=first_col_e)
-            vary_diag_vec = np.zeros([self.n_length]) + 1 + rho[e]**2
+            vary_diag_vec = np.zeros([self.n_length]) + 1 + rho[e] ** 2
             vary_diag_vec[0] = 1
             vary_diag_vec[-1] = 1
             tri_diag_mat[e, ...] += np.diag(vary_diag_vec)
@@ -1246,6 +1256,44 @@ class XDAGibbs(EEGPreFun):
                 s_sq_post, rho_post,
                 lambda_accept, s_sq_accept, rho_accept]
 
+    def save_bayes_lda_mcmc(
+            self, delta_tar_mcmc, delta_ntar_mcmc, lambda_mcmc, gamma_mcmc, s_sq_mcmc, rho_mcmc, log_lhd_mcmc
+    ):
+        sio.savemat('{}/{}/{}/{}_lda_mcmc_trn_{}.mat'.
+                    format(self.parent_path,
+                           self.data_type,
+                           self.sub_folder_name[:4],
+                           self.sub_folder_name,
+                           self.trn_repetition),
+                    {
+                        'delta_tar': delta_tar_mcmc,
+                        'delta_ntar': delta_ntar_mcmc,
+                        'lambda': lambda_mcmc,
+                        'gamma': gamma_mcmc,
+                        's_sq': s_sq_mcmc,
+                        'rho': rho_mcmc,
+                        'log_lhd': log_lhd_mcmc
+                    })
+
+    def import_bayes_lda_mcmc(self):
+        lda_bayes_mcmc = sio.loadmat('{}/{}/{}/{}_lda_mcmc_trn_{}.mat'
+                                     .format(self.parent_path,
+                                             self.data_type,
+                                             self.sub_folder_name[:4],
+                                             self.sub_folder_name,
+                                             self.trn_repetition))
+
+        lda_bayes_mcmc_keys, _ = zip(*lda_bayes_mcmc.items())
+        delta_tar = lda_bayes_mcmc['delta_tar']
+        delta_ntar = lda_bayes_mcmc['delta_ntar']
+        lambda_val = lda_bayes_mcmc['lambda']
+        gamma_val = lda_bayes_mcmc['gamma']
+        s_sq = lda_bayes_mcmc['s_sq']
+        rho = lda_bayes_mcmc['rho']
+        log_lhd = lda_bayes_mcmc['log_lhd']
+
+        return [delta_tar, delta_ntar, lambda_val, gamma_val, s_sq, rho, log_lhd]
+
     def adjust_s_sq_rho_step_size(self, zeta_s, zeta_rho, s_sq_accept_100, rho_accept_100):
 
         r"""
@@ -1414,14 +1462,14 @@ class XDAGibbs(EEGPreFun):
             delta_tar_i, delta_ntar_i,
             lambda_iter_i,
             s_sq_i, rho_i, gamma_i,
-            phi_fn, trn_repetition
+            phi_fn, trn_repetition, channel_ids=None
     ):
         r"""
         args:
         -----
             eeg_signals_trun: array_like
                 truncated eeg signals X_{v,i,j,e}, should have the dimension
-                (letter_dim*num_repetition*self.num_rep, self.num_electrode, self.n_length, 1)
+                (letter_dim*num_repetition*self.num_rep, num_electrode, self.n_length, 1)
             eeg_code: array_like
                 3d integer array representing the stimulus code, should have the dimension
                 (letter_dim, num_repetition, self.num_rep)
@@ -1435,21 +1483,27 @@ class XDAGibbs(EEGPreFun):
             s_sq_i: array_like, (num_electrode,)
             rho_i: array_like, (num_electrode,)
             gamma_i: array_like
-                selection indicator, should have the same dimension (self.num_electrode, self.n_length)
+                selection indicator, should have the same dimension (num_electrode, self.n_length)
             phi_fn: array_like
                 should have input shape (num_electrode, n_length, u)
             trn_repetition: integer
                 the number of sequence repetitions in the training set
+            channel_ids: integer array_like
 
         return:
         -----
             array containing the predicted letter for the v-th target letter, i-th sequence.
             should have the dimension (letter_dim, rep_dim).
+
+        note:
+        -----
+            the num_electrode may change to len(channel_dim),
+            depending on whether we use the entire num_electrode dataset to predict.
         """
 
         lambda_iter_i = lambda_iter_i[:, np.newaxis, np.newaxis]
-        gamma_i_mat = self.block_diagonal_mat(gamma_i)
-        pres_mat_i = self.generate_proposal_ar1_pres_mat(s_sq_i, rho_i)
+        gamma_i_mat = self.block_diagonal_mat(gamma_i, channel_ids=channel_ids)
+        pres_mat_i = self.generate_proposal_ar1_pres_mat(s_sq_i, rho_i, channel_ids=channel_ids)
         idns = self.identity_n[np.newaxis, ...]
         # phi_fn_t = np.transpose(phi_fn, [0, 2, 1])
 
@@ -1457,6 +1511,9 @@ class XDAGibbs(EEGPreFun):
         a1_I_gamma = self.a1 * (idns - gamma_i_mat)
         a0_I_a1_gamma = self.a0 * idns + self.a1 * gamma_i_mat
         a0_I_gamma = self.a0 * (idns - gamma_i_mat)
+
+        # print('lambda_iter_i has shape {}'.format(lambda_iter_i.shape))
+        # print('phi_fn has shape {}'.format(phi_fn.shape))
 
         mean_tar = lambda_iter_i * (a1_I_a0_gamma @ phi_fn @ delta_tar_i + a0_I_gamma @ phi_fn @ delta_ntar_i)
         mean_ntar = lambda_iter_i * (a0_I_a1_gamma @ phi_fn @ delta_ntar_i + a1_I_gamma @ phi_fn @ delta_tar_i)
@@ -1537,14 +1594,15 @@ class XDAGibbs(EEGPreFun):
             lambda_mcmc,
             gamma_mcmc, s_sq_mcmc, rho_mcmc,
             phi_fn, trn_repetition,
-            burn_in, target_letters
+            burn_in, target_letters,
+            channel_ids=None
     ):
         r"""
         args:
         -----
             eeg_signals_trun_all: array_like
                 truncated eeg signals X_{v,i,j,e}, should have the dimension
-                (letter_dim*num_repetition*self.num_rep, self.num_electrode, self.n_length, 1)
+                (letter_dim*num_repetition*self.num_rep, channel_dim, self.n_length, 1)
             eeg_code: 3d-array
                 should have the input shape (letter_dim, num_repetition, num_rep)
             delta_tar_mcmc: array_like
@@ -1564,6 +1622,7 @@ class XDAGibbs(EEGPreFun):
             trn_repetition: integer
             burn_in: integer
             target_letters: list of characters, len(target_letters) = letter_dim
+            channel_ids: a list of selected channel ids, indexing from 0 to num_electrode-1
 
         return:
         -----
@@ -1571,14 +1630,24 @@ class XDAGibbs(EEGPreFun):
             probability of being predicted correctly
         """
         lda_accuracy = []
-        # print(gamma_mcmc.shape)
 
-        for i in range(burn_in, self.kappa):
+        if channel_ids is not None:
+            eeg_signals_trun_all = eeg_signals_trun_all[:, channel_ids, ...]
+            delta_tar_mcmc = delta_tar_mcmc[:, channel_ids, ...]
+            delta_ntar_mcmc = delta_ntar_mcmc[:, channel_ids, ...]
+            lambda_mcmc = lambda_mcmc[:, channel_ids]
+            gamma_mcmc = gamma_mcmc[:, channel_ids, :]
+            s_sq_mcmc = s_sq_mcmc[:, channel_ids]
+            rho_mcmc = rho_mcmc[:, channel_ids]
+            phi_fn = phi_fn[channel_ids, ...]
+
+        for i in range(self.kappa - burn_in):
+            print('i={}, kappa={}'.format(i, self.kappa))
             pred_matrix_i = self.lda_two_step_estimation_mcmc_i(
                 eeg_signals_trun_all, eeg_code,
                 delta_tar_mcmc[i, ...], delta_ntar_mcmc[i, ...],
                 lambda_mcmc[i, :], s_sq_mcmc[i, :], rho_mcmc[i, :], gamma_mcmc[i, ...],
-                phi_fn, trn_repetition
+                phi_fn, trn_repetition, channel_ids=channel_ids
             )
             lda_accuracy.append(pred_matrix_i)
         lda_accuracy = np.stack(lda_accuracy, axis=0)
@@ -1592,7 +1661,7 @@ class XDAGibbs(EEGPreFun):
         for i, letter in enumerate(target_letters):
             [row_i, col_i] = self.determine_row_column_indices(letter)
             lda_accuracy_mean[i, :] = lda_accuracy_dist[i, :, (row_i-1)*self.row_column_length+
-                                                              col_i-self.row_column_length-1]
+                                                               col_i-self.row_column_length-1]
         lda_accuracy_max = np.around(np.max(lda_accuracy_dist, axis=-1), decimals=4)
         lda_accuracy_argmax = np.argmax(lda_accuracy_dist, axis=-1)
         lda_accuracy_letter_max = []
