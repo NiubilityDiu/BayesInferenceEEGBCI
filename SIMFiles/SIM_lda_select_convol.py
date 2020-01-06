@@ -26,7 +26,7 @@ b = 5  # weight for non-target
 sim_note = 'std_bool={}, kappa={}'.format(std_bool, sg.kappa)
 print(sim_note)
 
-trn_repetitions = [7, 9, 11, 13, 15]
+trn_repetitions = [11]
 
 for _, trn_repetition in enumerate(trn_repetitions):
     LDAGibbsObj = XDAGibbs(
@@ -103,7 +103,7 @@ for _, trn_repetition in enumerate(trn_repetitions):
     # s_sq_mcmc_accept = []
     # rho_mcmc_accept = []
 
-    mcmc_log_lhd = []
+    log_lhd_mcmc = []
 
     for k in range(LDAGibbsObj.kappa):
 
@@ -161,47 +161,44 @@ for _, trn_repetition in enumerate(trn_repetitions):
         # rho_post = np.copy(rho_old)
 
         pres_mat_post = LDAGibbsObj.generate_proposal_ar1_pres_mat(s_sq_post, rho_post)
-        mcmc_log_lhd_post = LDAGibbsObj.compute_sampling_log_lhd(
+        log_lhd_mcmc_post = LDAGibbsObj.compute_sampling_log_lhd(
             delta_tar_post, delta_ntar_post,
             lambda_post, gamma_mat_iter,
             pres_mat_post, train_x_mat_tar, train_x_mat_ntar, phi_fn
         )
-        mcmc_log_lhd.append(mcmc_log_lhd_post)
+        log_lhd_mcmc.append(log_lhd_mcmc_post)
 
         if k % sg.NUM_INTERVAL == 0 and k > 10:
             print('gibbs index = {}'.format(k+1))
             print(np.mean(gamma_mcmc[(k-sg.NUM_INTERVAL):k, ...], axis=0))
             # print('gamma_mat_iter selected per channel = {}'
             #       .format(np.sum(gamma_mat_iter, axis=1)))
-            print('mcmc_log_lhd_post = {}'.format(mcmc_log_lhd_post))
+            print('log_lhd_mcmc_post = {}'.format(log_lhd_mcmc_post))
 
         # Append the result of each iteration
         delta_tar_mcmc = np.concatenate([delta_tar_mcmc, delta_tar_post[np.newaxis, ...]], axis=0)
         delta_ntar_mcmc = np.concatenate([delta_ntar_mcmc, delta_ntar_post[np.newaxis, ...]], axis=0)
-
         lambda_mcmc = np.concatenate([lambda_mcmc, lambda_post[np.newaxis, :]], axis=0)
         gamma_mcmc = np.concatenate([gamma_mcmc, gamma_mat_iter[np.newaxis, ...]], axis=0)
-
         s_sq_mcmc = np.concatenate([s_sq_mcmc, s_sq_post[np.newaxis, :]], axis=0)
         rho_mcmc = np.concatenate([rho_mcmc, rho_post[np.newaxis, :]], axis=0)
 
     burn_in = int(LDAGibbsObj.kappa * 0.75)
-    gibbs_params_list = [
-        delta_tar_mcmc[burn_in:, ...].astype(sg.DAT_TYPE),
-        delta_ntar_mcmc[burn_in:, ...].astype(sg.DAT_TYPE),
+    delta_tar_mcmc = delta_tar_mcmc[burn_in:, ...]
+    delta_ntar_mcmc = delta_ntar_mcmc[burn_in:, ...]
+    lambda_mcmc = lambda_mcmc[burn_in:, :]
+    gamma_mcmc = gamma_mcmc[burn_in:, :]
+    s_sq_mcmc = s_sq_mcmc[burn_in:, :]
+    rho_mcmc = rho_mcmc[burn_in:, :]
+    log_lhd_mcmc = np.stack(log_lhd_mcmc, axis=0)
+    log_lhd_mcmc = log_lhd_mcmc[burn_in:, :]
 
-        lambda_mcmc[burn_in:, :].astype(sg.DAT_TYPE),
-        gamma_mcmc[burn_in:, ...].astype(sg.DAT_TYPE),
-
-        s_sq_mcmc[burn_in:, :].astype(sg.DAT_TYPE),
-        rho_mcmc[burn_in:, :].astype(sg.DAT_TYPE)
-    ]
-    mcmc_log_lhd = np.stack(mcmc_log_lhd, axis=0)
-
-    [delta_tar_mcmc_mean, delta_ntar_mcmc_mean,
-     lambda_mcmc_mean, gamma_mcmc_mean,
-     s_sq_mcmc_mean, rho_mcmc_mean] = [np.mean(gibbs_params_list[i], axis=0)
-                                       for i in range(len(gibbs_params_list))]
+    delta_tar_mcmc_mean = np.mean(delta_tar_mcmc, axis=0)
+    delta_ntar_mcmc_mean = np.mean(delta_ntar_mcmc, axis=0)
+    lambda_mcmc_mean = np.mean(lambda_mcmc, axis=0)
+    gamma_mcmc_mean = np.mean(gamma_mcmc, axis=0)
+    s_sq_mcmc_mean = np.mean(s_sq_mcmc, axis=0)
+    rho_mcmc_mean = np.mean(rho_mcmc, axis=0)
 
     # Truncated mean with standardization
     LDAGibbsObj.save_lda_selection_indicator(
@@ -235,30 +232,29 @@ for _, trn_repetition in enumerate(trn_repetitions):
     pres_mat_true = np.tile(pres_mat_true, [sg.num_electrode, 1, 1])
     gamma_mat_true = np.tile(gamma_mat_true, [sg.num_electrode, 1])
     phi_fn_id = np.eye(sg.n_length)[np.newaxis, ...]
+    lambda_true = np.ones([sg.num_electrode])
 
     # gamma_mat_true = np.ones([1, LDAGibbsObj.n_length])
     true_log_lhd = LDAGibbsObj.compute_sampling_log_lhd(
         train_tar_mean, train_ntar_mean,
-        np.array([1]), gamma_mat_true,
+        lambda_true, gamma_mat_true,
         pres_mat_true, train_x_mat_tar, train_x_mat_ntar,
         phi_fn_id
     )
     print('approx_true_log_lhd = {}'.format(true_log_lhd))
 
     LDAGibbsObj.save_mcmc_trace_plot(
-        rho_mcmc, s_sq_mcmc, lambda_mcmc, mcmc_log_lhd, gamma_mcmc_mean,
-        burn_in, true_log_lhd, sim_name
+        rho_mcmc, s_sq_mcmc, lambda_mcmc, log_lhd_mcmc, gamma_mcmc_mean,
+        true_log_lhd, sim_name
     )
 
     # classification
     eeg_code_3d = np.reshape(eeg_code, [sg.letter_dim, sg.num_repetition, sg.num_rep])
-
     lda_bayes_result = LDAGibbsObj.produce_lda_bayes_result_dict(
         signals_all, eeg_code_3d,
         delta_tar_mcmc, delta_ntar_mcmc,
-        lambda_mcmc,
-        gamma_mcmc, s_sq_mcmc, rho_mcmc,
-        phi_fn, trn_repetition, burn_in, sg.letters
+        lambda_mcmc, gamma_mcmc, s_sq_mcmc, rho_mcmc,
+        phi_fn, trn_repetition, sg.letters
     )
 
     print('Proportion of correct prediction:')
