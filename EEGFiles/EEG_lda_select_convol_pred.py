@@ -7,34 +7,19 @@ print(os.getcwd())
 # tf.compat.v1.random.set_random_seed(612)
 # np.random.seed(612)
 
-u = 8
-alpha_s = 5.0
-beta_s = 5.0
-zeta_lambda = 1e-4 * np.ones([gc.num_electrode])
-zeta_s = 5e-3 * np.ones([gc.num_electrode])
-zeta_rho = 1e-4 * np.ones([gc.num_electrode])
-ki = 0.4
-scale_1 = 0.15
-scale_2 = 0.2
-std_bool = True
-beta_ising = 0.1
-gamma_neighbor = 2
-plot_threshold = 0.5
-a = 1  # weight for target
-b = 5  # weight for non-target
-sim_note = 'std_bool={}, kappa={}'.format(std_bool, gc.kappa)
+sim_note = 'std_bool={}, kappa={}'.format(gc.std_bool, gc.kappa)
 print(sim_note)
-
-trn_repetitions = [5]
+trn_repetitions = [10]
+channel_ids = np.array([1, 2, 3, 6, 8, 12]) - 1
 
 for _, trn_repetition in enumerate(trn_repetitions):
 
     LDAGibbsObj = XDAGibbs(
         # hyper-parameters:
         sigma_sq_delta=100,
-        mu_1_delta=np.zeros([gc.num_electrode, u, 1]),  # Later on, we need to change the mu_1_delta by OLS (done!)
-        mu_0_delta=np.zeros([gc.num_electrode, u, 1]),
-        u=u, a=a, b=b, kappa=gc.kappa, letter_dim=gc.letter_dim, trn_repetition=trn_repetition,
+        mu_1_delta=np.zeros([gc.num_electrode, gc.u, 1]),  # Later on, we need to change the mu_1_delta by OLS (done!)
+        mu_0_delta=np.zeros([gc.num_electrode, gc.u, 1]),
+        u=gc.u, a=gc.a, b=gc.b, kappa=gc.kappa, letter_dim=gc.letter_dim, trn_repetition=trn_repetition,
         # EEGPreFun
         data_type=gc.data_type,
         sub_folder_name=gc.sub_file_name,
@@ -46,7 +31,7 @@ for _, trn_repetition in enumerate(trn_repetitions):
     )
 
     phi_val, phi_fn = LDAGibbsObj.create_gaussian_kernel_fn(
-        scale_1=scale_1, u=u, ki=ki, scale_2=scale_2, display_plot=False
+        scale_1=gc.scale_1, u=gc.u, ki=gc.ki, scale_2=gc.scale_2, display_plot=False
     )
     phi_val = np.tile(phi_val[:, np.newaxis], [1, gc.num_electrode])
     phi_fn = np.tile(phi_fn[np.newaxis, ...], [gc.num_electrode, 1, 1])
@@ -72,7 +57,7 @@ for _, trn_repetition in enumerate(trn_repetitions):
      train_x_tar_sum, train_x_ntar_sum,
      train_x_tar_indices, train_x_ntar_indices,
      eeg_code_3d] = LDAGibbsObj.obtain_pre_processed_signals(
-            signals, eeg_code, eeg_type, std_bool=std_bool
+            signals, eeg_code, eeg_type, std_bool=gc.std_bool
     )
 
     # Use signals_train_t_mean and signals_train_nt_mean to compute mu_1/mu_0
@@ -102,7 +87,7 @@ for _, trn_repetition in enumerate(trn_repetitions):
     LDAGibbsObj.save_lda_selection_indicator(
         train_tar_mean, train_ntar_mean,
         lambda_mcmc_mean, gamma_mcmc_mean,
-        message_eeg, gc.sub_file_name[:4], phi_fn, threshold=plot_threshold, mcmc=False
+        message_eeg, gc.sub_file_name[:4], phi_fn, threshold=gc.plot_threshold, mcmc=False
     )
 
     beta_tar_mcmc = phi_fn[np.newaxis, ...] @ (lambda_mcmc[..., np.newaxis, np.newaxis] * delta_tar_mcmc)
@@ -117,7 +102,7 @@ for _, trn_repetition in enumerate(trn_repetitions):
     LDAGibbsObj.save_lda_selection_indicator(
         delta_tar_mcmc_mean, delta_ntar_mcmc_mean,
         lambda_mcmc_mean, gamma_mcmc_mean,
-        message_eeg, gc.sub_file_name[:4], phi_fn, threshold=plot_threshold, mcmc=True,
+        message_eeg, gc.sub_file_name[:4], phi_fn, threshold=gc.plot_threshold, mcmc=True,
         beta_tar_lower=beta_tar_lower,
         beta_tar_upper=beta_tar_upper,
         beta_ntar_lower=beta_ntar_lower,
@@ -138,7 +123,7 @@ for _, trn_repetition in enumerate(trn_repetitions):
         lambda_mcmc,
         gamma_mcmc, s_sq_mcmc, rho_mcmc,
         phi_fn, trn_repetition, gc.target_letters,
-        channel_ids=np.array([5])
+        channel_ids=channel_ids
     )
 
     print('Proportion of correct prediction:')
