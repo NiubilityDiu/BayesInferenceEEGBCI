@@ -133,7 +133,7 @@ class XDAGibbs(EEGPreFun):
             s_sq_est: array_like, (1, num_electrode), preliminary estimates from raw signals
         return:
         -----
-            A list of containing five arrays,
+            A list of containing 6 arrays,
             delta_tar_mcmc, array_like, (1, num_electrode, u)
             delta_ntar_mcmc, array_like, (1, num_electrode, u)
             lambda_mcmc, array_like, (1, num_electrode)
