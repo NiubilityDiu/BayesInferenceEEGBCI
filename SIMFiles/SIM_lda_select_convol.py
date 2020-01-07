@@ -18,6 +18,7 @@ ki = 0.4
 scale_1 = 0.2
 scale_2 = 0.2
 std_bool = False
+display_plot_bool = False
 beta_ising = 0.1
 gamma_neighbor = 2
 plot_threshold = 0.5
@@ -47,7 +48,7 @@ for _, trn_repetition in enumerate(trn_repetitions):
     )
 
     phi_val, phi_fn = LDAGibbsObj.create_gaussian_kernel_fn(
-        scale_1=scale_1, u=u, ki=ki, scale_2=scale_2, display_plot=False
+        scale_1=scale_1, u=u, ki=ki, scale_2=scale_2, display_plot=display_plot_bool
     )
     phi_val = np.tile(phi_val[:, np.newaxis], [1, sg.num_electrode])
     phi_fn = np.tile(phi_fn[np.newaxis, ...], [sg.num_electrode, 1, 1])
