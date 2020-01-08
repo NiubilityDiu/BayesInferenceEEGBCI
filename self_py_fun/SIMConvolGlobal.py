@@ -7,10 +7,10 @@ local_use = (sys.argv[1] == 'True')
 
 date_base_num = 2020010200
 
-sim_ids = date_base_num + np.arange(10) + 21
+sim_ids = date_base_num + np.arange(30) + 1
 if local_use:
     # sim_name_id = sys.argv[2]
-    sim_name_id = date_base_num + 18
+    sim_name_id = date_base_num + 6
 else:
     sim_name_id = sim_ids[int(os.environ.get('SLURM_ARRAY_TASK_ID'))]
 
@@ -26,16 +26,33 @@ elif sim_name_id <= date_base_num + 20:
 else:
     num_electrode = 3
 
-num_electrode_generate = 3
+num_electrode_generate = 2
 
 n_multiple = 5
 flash_and_pause_length = 5
 n_length = int(n_multiple * flash_and_pause_length)
 num_rep = 12
 total_stm_num = num_repetition * num_rep
-kappa = 5200
-NUM_INTERVAL = 200
 
+# Bayes LDA global/hyper-parameters
+u = 8
+alpha_s = 5.0
+beta_s = 5.0
+zeta_lambda = 1e-3 * np.ones([num_electrode])
+zeta_s = 1e-1 * np.ones([num_electrode])
+zeta_rho = 1e-4 * np.ones([num_electrode])
+ki = 0.4
+scale_1 = 0.2
+scale_2 = 0.15
+std_bool = False
+display_plot_bool = False
+beta_ising = 0.1
+gamma_neighbor = 2
+plot_threshold = 0.5
+a = 1  # weight for target
+b = 5  # weight for non-target
+kappa = 3200
+NUM_INTERVAL = 200
 
 # trn_repetition = 10
 # n_samples, n_burn_in = 200, 2000
