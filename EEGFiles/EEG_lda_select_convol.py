@@ -7,34 +7,18 @@ print(os.getcwd())
 # tf.compat.v1.random.set_random_seed(612)
 # np.random.seed(612)
 
-u = 8
-alpha_s = 5.0
-beta_s = 5.0
-zeta_lambda = 1e-4 * np.ones([gc.num_electrode])
-zeta_s = 5e-3 * np.ones([gc.num_electrode])
-zeta_rho = 1e-4 * np.ones([gc.num_electrode])
-ki = 0.4
-scale_1 = 0.15
-scale_2 = 0.2
-std_bool = True
-beta_ising = 0.1
-gamma_neighbor = 2
-plot_threshold = 0.5
-a = 1  # weight for target
-b = 5  # weight for non-target
-sim_note = 'std_bool={}, kappa={}'.format(std_bool, gc.kappa)
+sim_note = 'std_bool={}, kappa={}'.format(gc.std_bool, gc.kappa)
 print(sim_note)
-
-trn_repetitions = [5]
+trn_repetitions = [15]
 
 for _, trn_repetition in enumerate(trn_repetitions):
 
     LDAGibbsObj = XDAGibbs(
         # hyper-parameters:
         sigma_sq_delta=100,
-        mu_1_delta=np.zeros([gc.num_electrode, u, 1]),  # Later on, we need to change the mu_1_delta by OLS (done!)
-        mu_0_delta=np.zeros([gc.num_electrode, u, 1]),
-        u=u, a=a, b=b, kappa=gc.kappa, letter_dim=gc.letter_dim, trn_repetition=trn_repetition,
+        mu_1_delta=np.zeros([gc.num_electrode, gc.u, 1]),  # Later on, we need to change the mu_1_delta by OLS (done!)
+        mu_0_delta=np.zeros([gc.num_electrode, gc.u, 1]),
+        u=gc.u, a=gc.a, b=gc.b, kappa=gc.kappa, letter_dim=gc.letter_dim, trn_repetition=trn_repetition,
         # EEGPreFun
         data_type=gc.data_type,
         sub_folder_name=gc.sub_file_name,
@@ -46,7 +30,7 @@ for _, trn_repetition in enumerate(trn_repetitions):
     )
 
     phi_val, phi_fn = LDAGibbsObj.create_gaussian_kernel_fn(
-        scale_1=scale_1, u=u, ki=ki, scale_2=scale_2, display_plot=False
+        scale_1=gc.scale_1, u=gc.u, ki=gc.ki, scale_2=gc.scale_2, display_plot=False
     )
     phi_val = np.tile(phi_val[:, np.newaxis], [1, gc.num_electrode])
     phi_fn = np.tile(phi_fn[np.newaxis, ...], [gc.num_electrode, 1, 1])
@@ -72,7 +56,7 @@ for _, trn_repetition in enumerate(trn_repetitions):
      train_x_tar_sum, train_x_ntar_sum,
      train_x_tar_indices, train_x_ntar_indices,
      eeg_code_3d] = LDAGibbsObj.obtain_pre_processed_signals(
-            signals, eeg_code, eeg_type, std_bool=std_bool
+            signals, eeg_code, eeg_type, std_bool=gc.std_bool
     )
 
     # Use signals_train_t_mean and signals_train_nt_mean to compute mu_1/mu_0
@@ -84,7 +68,6 @@ for _, trn_repetition in enumerate(trn_repetitions):
     LDAGibbsObj.mu_0_delta = phi_fn_ols_operator @ np.zeros_like(train_ntar_mean)
     # Compute preliminary s_sq_est
     s_sq_est = np.var(np.concatenate([train_x_mat_tar, train_x_mat_ntar], axis=0), axis=(0, 2))
-
 
     # Initialize the parameters:
     [delta_tar_mcmc, delta_ntar_mcmc,
@@ -102,6 +85,7 @@ for _, trn_repetition in enumerate(trn_repetitions):
         # gamma_mat_iter = np.ones([1, LDAGibbsObj.n_length])
         s_sq_old = np.copy(s_sq_mcmc[k, :])
         rho_old = np.copy(rho_mcmc[k, :])
+        # rho_old = 0.75 * np.ones(gc.num_electrode)
         pres_mat_old = LDAGibbsObj.generate_proposal_ar1_pres_mat(s_sq_old, rho_old)
 
         # delta_tar_post = phi_fn_ols_operator @ true_beta_tar
@@ -120,7 +104,7 @@ for _, trn_repetition in enumerate(trn_repetitions):
         [lambda_post, lambda_accept] = LDAGibbsObj.update_lambda_iter_post_mh(
             delta_tar_post, delta_ntar_post, lambda_old,
             gamma_mat_iter, s_sq_old, rho_old, train_x_mat_tar, train_x_mat_ntar,
-            phi_fn, alpha_s, beta_s, zeta_lambda
+            phi_fn, gc.alpha_s, gc.beta_s, gc.zeta_lambda
         )
         # lambda_post = np.array([1])
 
@@ -128,21 +112,21 @@ for _, trn_repetition in enumerate(trn_repetitions):
             gamma_mat_iter = LDAGibbsObj.update_gamma_post_2(
                 gamma_mat_iter, delta_tar_post, delta_ntar_post,
                 lambda_post, pres_mat_old,
-                tau, train_x_mat_tar, train_x_mat_ntar, phi_fn, beta_ising, gamma_neighbor
+                tau, train_x_mat_tar, train_x_mat_ntar, phi_fn, gc.beta_ising, gc.gamma_neighbor
             )
         [s_sq_post, s_sq_accept] = LDAGibbsObj.update_s_sq_post_mh(
             delta_tar_post, delta_ntar_post,
             lambda_post, gamma_mat_iter,
             s_sq_old, rho_old,
             train_x_mat_tar, train_x_mat_ntar, phi_fn,
-            alpha_s, beta_s, zeta_s
+            gc.alpha_s, gc.beta_s, gc.zeta_s
         )
         # s_sq_post = np.copy(s_sq_old)
 
         [rho_post, rho_accept] = LDAGibbsObj.update_rho_post_mh(
             delta_tar_post, delta_ntar_post,
             lambda_post, gamma_mat_iter,
-            s_sq_post, rho_old, train_x_mat_tar, train_x_mat_ntar, phi_fn, zeta_rho
+            s_sq_post, rho_old, train_x_mat_tar, train_x_mat_ntar, phi_fn, gc.zeta_rho
         )
         # rho_post = np.copy(rho_old)
 
