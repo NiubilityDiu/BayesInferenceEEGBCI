@@ -9,7 +9,9 @@ print(os.getcwd())
 
 sim_note = 'std_bool={}, kappa={}'.format(gc.std_bool, gc.kappa)
 print(sim_note)
+
 trn_repetitions = [15]
+
 
 for _, trn_repetition in enumerate(trn_repetitions):
 

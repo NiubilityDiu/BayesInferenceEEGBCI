@@ -133,7 +133,7 @@ class XDAGibbs(EEGPreFun):
             s_sq_est: array_like, (1, num_electrode), preliminary estimates from raw signals
         return:
         -----
-            A list of containing 6 arrays,
+            A list of containing five arrays,
             delta_tar_mcmc, array_like, (1, num_electrode, u)
             delta_ntar_mcmc, array_like, (1, num_electrode, u)
             lambda_mcmc, array_like, (1, num_electrode)
@@ -753,19 +753,11 @@ class XDAGibbs(EEGPreFun):
         """
         assert s_sq_new.shape == s_sq_old.shape == (self.num_electrode,)
 
-        gamma_rv = stats.invgamma(a=alpha_s)
-        # s_sq_old_rate = s_sq_old / beta_s
-        # s_sq_new_rate = s_sq_new / beta_s
-        s_sq_old_log_cdf = gamma_rv.logcdf(s_sq_old * beta_s)
-        s_sq_new_log_cdf = gamma_rv.logcdf(s_sq_new * beta_s)
+        s_sq_rv = stats.invgamma(a=alpha_s)
+        s_sq_old_log_pdf = s_sq_rv.logpdf(s_sq_old * beta_s)
+        s_sq_new_log_pdf = s_sq_rv.logpdf(s_sq_new * beta_s)
 
-        '''
-        log_norm_rv = stats.lognorm(s=1)
-        s_sq_old_log_cdf = log_norm_rv.logcdf(s_sq_old)
-        s_sq_new_log_cdf = log_norm_rv.logcdf(s_sq_new)
-        '''
-
-        return s_sq_new_log_cdf - s_sq_old_log_cdf
+        return s_sq_new_log_pdf - s_sq_old_log_pdf
 
     def compute_log_prior_ratio_lambda(self, lambda_old, lambda_new, alpha_s, beta_s):
         r"""
@@ -781,19 +773,19 @@ class XDAGibbs(EEGPreFun):
             array_like value, (num_electrode,)
         note:
         -----
-            we assume s_sq ~ Gamma(alpha_s, beta_s)
+            we assume lambda ~ Gamma(alpha_s, beta_s)
             Not to be confused, I always use alpha, beta parametrization
             beta_s is the inverse of scale!
         """
         assert lambda_new.shape == lambda_old.shape == (self.num_electrode,)
 
-        log_norm_rv = stats.invgamma(a=alpha_s)
-        lambda_old_log_cdf = log_norm_rv.logcdf(lambda_old * beta_s)
-        lambda_new_log_cdf = log_norm_rv.logcdf(lambda_new * beta_s)
+        lambda_rv = stats.gamma(a=alpha_s)
+        lambda_old_log_pdf = lambda_rv.logpdf(lambda_old * beta_s)
+        lambda_new_log_pdf = lambda_rv.logpdf(lambda_new * beta_s)
 
-        return lambda_new_log_cdf - lambda_old_log_cdf
+        return lambda_new_log_pdf - lambda_old_log_pdf
 
-    def compute_log_prior_ratio_rho(self, rho_old, rho_new):
+    def compute_log_prior_ratio_rho(self, rho_old, rho_new, a=1, b=1):
         r"""
         args:
         -----
@@ -806,14 +798,15 @@ class XDAGibbs(EEGPreFun):
 
         note:
         -----
-            I assume rho ~ Uniform(0, 1)
+            I assume rho ~ Uniform(0, 1) (or Beta(1, 1)
         """
         assert rho_new.shape == rho_old.shape == (self.num_electrode,)
 
-        rho_old_log_cdf = np.log(rho_old)
-        rho_new_log_cdf = np.log(rho_new)
+        rho_rv = stats.beta(a=a, b=b)
+        rho_old_log_pdf = rho_rv.logpdf(rho_old)
+        rho_new_log_pdf = rho_rv.logpdf(rho_new)
 
-        return rho_new_log_cdf - rho_old_log_cdf
+        return rho_new_log_pdf - rho_old_log_pdf
 
     def compute_sampling_log_lhd(
             self, delta_tar, delta_ntar,
@@ -1593,8 +1586,7 @@ class XDAGibbs(EEGPreFun):
             delta_tar_mcmc, delta_ntar_mcmc,
             lambda_mcmc,
             gamma_mcmc, s_sq_mcmc, rho_mcmc,
-            phi_fn, trn_repetition,
-            burn_in, target_letters,
+            phi_fn, trn_repetition, target_letters,
             channel_ids=None
     ):
         r"""
@@ -1630,8 +1622,9 @@ class XDAGibbs(EEGPreFun):
             probability of being predicted correctly
         """
         lda_accuracy = []
-
+        mcmc_iter = rho_mcmc.shape[0]
         if channel_ids is not None:
+            print('The selected channels are {}'.format(channel_ids+1))
             eeg_signals_trun_all = eeg_signals_trun_all[:, channel_ids, ...]
             delta_tar_mcmc = delta_tar_mcmc[:, channel_ids, ...]
             delta_ntar_mcmc = delta_ntar_mcmc[:, channel_ids, ...]
@@ -1641,8 +1634,16 @@ class XDAGibbs(EEGPreFun):
             rho_mcmc = rho_mcmc[:, channel_ids]
             phi_fn = phi_fn[channel_ids, ...]
 
-        for i in range(self.kappa - burn_in):
-            print('i={}, kappa={}'.format(i, self.kappa))
+            print('eeg_signals_trun_all has shape {}'.format(eeg_signals_trun_all.shape))
+            print('delta_tar_mcmc has shape {}'.format(delta_tar_mcmc.shape))
+            print('delta_ntar_mcmc has shape {}'.format(delta_ntar_mcmc.shape))
+            print('lambda_mcmc has shape {}'.format(lambda_mcmc.shape))
+            print('gamma_mcmc has shape {}'.format(gamma_mcmc.shape))
+            print('s_sq_mcmc has shape {}'.format(s_sq_mcmc.shape))
+            print('rho_mcmc has shape {}'.format(rho_mcmc.shape))
+
+        for i in range(mcmc_iter):
+            # print('i={}, kappa={}'.format(i, self.kappa))
             pred_matrix_i = self.lda_two_step_estimation_mcmc_i(
                 eeg_signals_trun_all, eeg_code,
                 delta_tar_mcmc[i, ...], delta_ntar_mcmc[i, ...],
@@ -1671,7 +1672,7 @@ class XDAGibbs(EEGPreFun):
         lda_accuracy_letter_max = np.reshape(np.stack(lda_accuracy_letter_max, axis=0),
                                              [self.letter_dim, self.num_repetition])
         lda_bayes_result_dict = {
-            "sample_num": self.kappa - burn_in,
+            "sample_num": mcmc_iter,
             "mean": lda_accuracy_mean,
             "max": lda_accuracy_max,
             "letter_max": lda_accuracy_letter_max
@@ -1680,7 +1681,7 @@ class XDAGibbs(EEGPreFun):
         return lda_bayes_result_dict
 
     def save_mcmc_trace_plot(
-            self, rho_mcmc, s_sq_mcmc, lambda_mcmc, mcmc_log_lhd, gamma_mcmc_mean, burn_in,
+            self, rho_mcmc, s_sq_mcmc, lambda_mcmc, mcmc_log_lhd, gamma_mcmc_mean,
             true_log_lhd, sim_folder_name
     ):
         r"""
@@ -1690,7 +1691,6 @@ class XDAGibbs(EEGPreFun):
         :param lambda_mcmc:
         :param mcmc_log_lhd:
         :param gamma_mcmc_mean: mean selection rate over MCMC iteratios, with shape (num_electrode, n_length)
-        :param burn_in: integer
         :param true_log_lhd: true log-likelihood, with shape (num_electrode,)
         :param sim_folder_name: string
         :return:
@@ -1701,20 +1701,19 @@ class XDAGibbs(EEGPreFun):
                                  .format(self.parent_path,
                                          self.data_type,
                                          sim_folder_name,
-                                         self.trn_repetition
-                                         ))
+                                         self.trn_repetition))
         # MCMC traceplot check
         for i in range(self.num_electrode):
             fig_1 = plt.figure(figsize=(12, 12))
             ax1 = fig_1.add_subplot(3, 1, 1)
-            ax1.plot(rho_mcmc[burn_in:, i])
+            ax1.plot(rho_mcmc[:, i])
             ax1.set_ylim(0, 1)
             ax1.title.set_text('rho_channel_' + str(i + 1))
             ax2 = fig_1.add_subplot(3, 1, 2)
-            ax2.plot(s_sq_mcmc[burn_in:, i])
+            ax2.plot(s_sq_mcmc[:, i])
             ax2.title.set_text('sim_sq_channel_' + str(i + 1))
             ax3 = fig_1.add_subplot(3, 1, 3)
-            ax3.plot(lambda_mcmc[burn_in:, i])
+            ax3.plot(lambda_mcmc[:, i])
             ax3.title.set_text('kernel-variance_channel_' + str(i + 1))
             plt.close()
             plot_pdf.savefig(fig_1)
@@ -1723,7 +1722,7 @@ class XDAGibbs(EEGPreFun):
         for i in range(self.num_electrode):
             fig_2 = plt.figure(figsize=(12, 12))
             ax1 = fig_2.add_subplot(2, 1, 1)
-            ax1.plot(mcmc_log_lhd[burn_in:, i])
+            ax1.plot(mcmc_log_lhd[:, i])
             ax1.title.set_text('log_lhd_with_truth_{}_channel_{}'.format(true_log_lhd[i], i+1))
 
             ax2 = fig_2.add_subplot(2, 1, 2)

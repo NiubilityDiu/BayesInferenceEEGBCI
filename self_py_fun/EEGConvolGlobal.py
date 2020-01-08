@@ -3,12 +3,22 @@ import numpy as np
 import sys
 # Define the global constants:
 
-# local_use = (sys.argv[1] == 'True')
-local_use = True
-K_num_ids = [106, 107, 151, 160, 183]
+local_use = (sys.argv[1] == 'True')
+# local_use = True
+K_num_ids = np.array([106, 107, 108,
+                      111, 112, 113, 114, 115, 117, 118, 119, 120,
+                      121, 122, 123,
+                      143, 145, 146, 147,
+                      151, 152, 154, 155, 156, 158, 159, 160,
+                      166, 167, 171, 172, 177, 178, 179,
+                      183, 184, 185, 190,
+                      191,
+                      212,
+                      223])
 
+# 41 subjects with K protocols
 if local_use:
-    K_num = 151
+    K_num = 108
 else:
     K_num = K_num_ids[int(os.environ.get('SLURM_ARRAY_TASK_ID'))]
     # K_num = 106
@@ -59,7 +69,6 @@ n_length = n_multiple * flash_and_pause_length
 # eps_kernel_scale = 0.5*np.ones([num_electrode])
 
 # Gibbs sampling:
-kappa = 2500
 u = 8
 alpha_s = 5.0
 beta_s = 5.0
@@ -67,7 +76,7 @@ zeta_lambda = 1e-4 * np.ones([num_electrode])
 zeta_s = 5e-3 * np.ones([num_electrode])
 zeta_rho = 1e-4 * np.ones([num_electrode])
 ki = 0.4
-scale_1 = 0.15
+scale_1 = 0.2
 scale_2 = 0.2
 std_bool = False
 beta_ising = 0.1
@@ -75,6 +84,7 @@ gamma_neighbor = 2
 plot_threshold = 0.5
 a = 1  # weight for target
 b = 5  # weight for non-target
+kappa = 3200
 NUM_INTERVAL = 200
 
 # HMC Inference

@@ -8,34 +8,19 @@ print(os.getcwd())
 # np.random.seed(612)
 
 sim_name = 'sim_' + str(sg.sim_name_id)
-u = 8
-alpha_s = 5.0
-beta_s = 5.0
-zeta_lambda = 1e-3 * np.ones([sg.num_electrode])
-zeta_s = 1e-2 * np.ones([sg.num_electrode])
-zeta_rho = 1e-4 * np.ones([sg.num_electrode])
-ki = 0.4
-scale_1 = 0.2
-scale_2 = 0.15
-std_bool = False
-beta_ising = 0.1
-gamma_neighbor = 2
-plot_threshold = 0.5
-a = 1  # weight for target
-b = 5  # weight for non-target
-sim_note = 'std_bool={}, kappa={}'.format(std_bool, sg.kappa)
+sim_note = 'std_bool={}, kappa={}'.format(sg.std_bool, sg.kappa)
 print(sim_note)
 
-trn_repetitions = [11]
+trn_repetitions = [15]
 
 for _, trn_repetition in enumerate(trn_repetitions):
 
     LDAGibbsObj = XDAGibbs(
         # hyper-parameters:
         sigma_sq_delta=100,
-        mu_1_delta=np.zeros([sg.num_electrode, u, 1]),
-        mu_0_delta=np.zeros([sg.num_electrode, u, 1]),
-        u=u, a=a, b=b, kappa=sg.kappa, letter_dim=sg.letter_dim, trn_repetition=trn_repetition,
+        mu_1_delta=np.zeros([sg.num_electrode, sg.u, 1]),
+        mu_0_delta=np.zeros([sg.num_electrode, sg.u, 1]),
+        u=sg.u, a=sg.a, b=sg.b, kappa=sg.kappa, letter_dim=sg.letter_dim, trn_repetition=trn_repetition,
         # EEGPreFun
         data_type=sg.data_type, sub_folder_name=sim_name,
         # EEGGeneralFun
@@ -46,7 +31,7 @@ for _, trn_repetition in enumerate(trn_repetitions):
     )
 
     phi_val, phi_fn = LDAGibbsObj.create_gaussian_kernel_fn(
-        scale_1=scale_1, u=u, ki=ki, scale_2=scale_2, display_plot=True
+        scale_1=sg.scale_1, u=sg.u, ki=sg.ki, scale_2=sg.scale_2, display_plot=sg.display_plot_bool
     )
     phi_val = np.tile(phi_val[:, np.newaxis], [1, sg.num_electrode])
     phi_fn = np.tile(phi_fn[np.newaxis, ...], [sg.num_electrode, 1, 1])
@@ -88,7 +73,7 @@ for _, trn_repetition in enumerate(trn_repetitions):
     signals_tar_train = signals_train[trun_x_tar_indices_train, ...]
     signals_ntar_train = signals_train[trun_x_ntar_indices_train, ...]
 
-    if std_bool:
+    if sg.std_bool:
         signals_train_tar_mean -= signals_train_ntar_mean
         signals_train_ntar_mean -= signals_train_ntar_mean
         signals_train -= signals_train_ntar_mean[np.newaxis, ...]
@@ -104,8 +89,8 @@ for _, trn_repetition in enumerate(trn_repetitions):
     # LDAGibbsObj.mu_0_delta = phi_fn_ols_operator @ signals_train_ntar_mean
     LDAGibbsObj.mu_1_delta = phi_fn_ols_operator @ np.zeros_like(signals_train_tar_mean)
     LDAGibbsObj.mu_0_delta = phi_fn_ols_operator @ np.zeros_like(signals_train_ntar_mean)
-    s_sq_est = np.var(signals_train, axis=(0, 2))
-
+    s_sq_est = np.var(signals_train, axis=(0, 2)) * 0.1
+    print('s_sq_est = {}'.format(s_sq_est))
     # Initialize the parameters:
     [delta_tar_mcmc, delta_ntar_mcmc,
      lambda_mcmc, gamma_mcmc,
@@ -122,9 +107,9 @@ for _, trn_repetition in enumerate(trn_repetitions):
         # gamma_mat_iter = np.array([[0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]])
         # gamma_mat_iter = np.ones([1, LDAGibbsObj.n_length])
         s_sq_old = np.copy(s_sq_mcmc[k, :])
-        # s_sq_old = np.copy(np.array([sim_name_id]))
+        # s_sq_old = np.copy(np.array([10]))
         rho_old = np.copy(rho_mcmc[k, :])
-        # rho_old = np.array([0])
+        # rho_old = np.array([0.2])
         pres_mat_old = LDAGibbsObj.generate_proposal_ar1_pres_mat(s_sq_old, rho_old)
 
         # delta_tar_post = phi_fn_ols_operator @ true_beta_tar
@@ -142,7 +127,7 @@ for _, trn_repetition in enumerate(trn_repetitions):
         [lambda_post, lambda_accept] = LDAGibbsObj.update_lambda_iter_post_mh(
             delta_tar_post, delta_ntar_post, lambda_old,
             gamma_mat_iter, s_sq_old, rho_old, trun_x_mat_tar, trun_x_mat_ntar,
-            phi_fn, alpha_s, beta_s, zeta_lambda
+            phi_fn, sg.alpha_s, sg.beta_s, sg.zeta_lambda
         )
         # lambda_post = np.array([1])
 
@@ -150,21 +135,21 @@ for _, trn_repetition in enumerate(trn_repetitions):
             gamma_mat_iter = LDAGibbsObj.update_gamma_post_2(
                 gamma_mat_iter, delta_tar_post, delta_ntar_post,
                 lambda_post, pres_mat_old,
-                tau, trun_x_mat_tar, trun_x_mat_ntar, phi_fn, beta_ising, gamma_neighbor
+                tau, trun_x_mat_tar, trun_x_mat_ntar, phi_fn, sg.beta_ising, sg.gamma_neighbor
             )
         [s_sq_post, s_sq_accept] = LDAGibbsObj.update_s_sq_post_mh(
             delta_tar_post, delta_ntar_post,
             lambda_post, gamma_mat_iter,
             s_sq_old, rho_old,
             trun_x_mat_tar, trun_x_mat_ntar, phi_fn,
-            alpha_s, beta_s, zeta_s
+            sg.alpha_s, sg.beta_s, sg.zeta_s
         )
         # s_sq_post = np.copy(s_sq_old)
 
         [rho_post, rho_accept] = LDAGibbsObj.update_rho_post_mh(
             delta_tar_post, delta_ntar_post,
             lambda_post, gamma_mat_iter,
-            s_sq_post, rho_old, trun_x_mat_tar, trun_x_mat_ntar, phi_fn, zeta_rho
+            s_sq_post, rho_old, trun_x_mat_tar, trun_x_mat_ntar, phi_fn, sg.zeta_rho
         )
         # rho_post = np.copy(rho_old)
 
@@ -214,7 +199,7 @@ for _, trn_repetition in enumerate(trn_repetitions):
     LDAGibbsObj.save_lda_selection_indicator(
         signals_train_tar_mean, signals_train_ntar_mean,
         lambda_mcmc_mean, gamma_mcmc_mean,
-        message, sim_name, phi_fn, plot_threshold, mcmc=False
+        message, sim_name, phi_fn, sg.plot_threshold, mcmc=False
     )
 
     beta_tar_mcmc = phi_fn[np.newaxis, ...] @ (lambda_mcmc[..., np.newaxis, np.newaxis] * delta_tar_mcmc)
@@ -228,7 +213,7 @@ for _, trn_repetition in enumerate(trn_repetitions):
     LDAGibbsObj.save_lda_selection_indicator(
         delta_tar_mcmc_mean, delta_ntar_mcmc_mean,
         lambda_mcmc_mean, gamma_mcmc_mean,
-        message, sim_name, phi_fn, plot_threshold, mcmc=True,
+        message, sim_name, phi_fn, sg.plot_threshold, mcmc=True,
         beta_tar_lower=beta_tar_lower,
         beta_tar_upper=beta_tar_upper,
         beta_ntar_lower=beta_ntar_lower,
