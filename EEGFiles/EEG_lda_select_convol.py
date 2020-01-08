@@ -10,7 +10,8 @@ print(os.getcwd())
 sim_note = 'std_bool={}, kappa={}'.format(gc.std_bool, gc.kappa)
 print(sim_note)
 
-trn_repetitions = [10]
+trn_repetitions = [15]
+
 
 for _, trn_repetition in enumerate(trn_repetitions):
 
@@ -86,6 +87,7 @@ for _, trn_repetition in enumerate(trn_repetitions):
         # gamma_mat_iter = np.ones([1, LDAGibbsObj.n_length])
         s_sq_old = np.copy(s_sq_mcmc[k, :])
         rho_old = np.copy(rho_mcmc[k, :])
+        # rho_old = 0.75 * np.ones(gc.num_electrode)
         pres_mat_old = LDAGibbsObj.generate_proposal_ar1_pres_mat(s_sq_old, rho_old)
 
         # delta_tar_post = phi_fn_ols_operator @ true_beta_tar
