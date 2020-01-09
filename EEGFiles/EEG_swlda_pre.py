@@ -18,7 +18,9 @@ EEGswLDAObj = SWLDAPred(
     p300_pause_strength=gc.p300_pause_strength,
     non_p300_strength=gc.non_p300_strength,
     num_letter=gc.num_letter,
-    n_multiple=gc.n_multiple)
+    n_multiple=gc.n_multiple,
+    local_bool=gc.local_use
+)
 EEGswLDAObj.print_sub_trn_info(gc.num_repetition)
 
 # Import the training set without subsetting yet
@@ -42,7 +44,7 @@ print('eeg_signals_trun has sigma_sq {}'.format(np.var(eeg_signals_trun, axis=(0
     eeg_signals_trun, eeg_type_sub)
 
 eeg_signals_trun_mean = np.mean(eeg_signals_trun, axis=0)
-'''
+
 # for i in range(gc.num_electrode):
 #     plt.figure()
 #     plt.plot(eeg_signals_trun_t_mean[i, :], label="target-mean")
@@ -51,13 +53,17 @@ eeg_signals_trun_mean = np.mean(eeg_signals_trun, axis=0)
 #     plt.legend(loc="upper right")
 #     plt.title('chan-'+str(i+1))
 
-t_mean_std = eeg_signals_trun_t_mean - eeg_signals_trun_mean
-nt_mean_std = eeg_signals_trun_nt_mean - eeg_signals_trun_mean
+EEGswLDAObj.produce_mean_covariance_plots(
+    eeg_signals_trun_t_mean, eeg_signals_trun_nt_mean, None, None, 'sample_unstd', gc.file_subscript
+)
+
+eeg_signals_trun_t_mean = eeg_signals_trun_t_mean - eeg_signals_trun_mean
+eeg_signals_trun_nt_mean = eeg_signals_trun_nt_mean - eeg_signals_trun_mean
 
 EEGswLDAObj.produce_mean_covariance_plots(
-    t_mean_std, nt_mean_std, None, None, 'sample', gc.file_subscript
+    eeg_signals_trun_t_mean, eeg_signals_trun_nt_mean, None, None, 'sample_std', gc.file_subscript
 )
-'''
+
 # Save the entire training sequence and
 # extended eeg_type/label for matlab usage.
 '''
