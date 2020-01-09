@@ -3,11 +3,12 @@ sys.path.insert(0, './self_py_fun')
 from self_py_fun.EEGPreFun import *
 plt.style.use('ggplot')
 import csv
-import tensorflow as tf
-import tensorflow_probability as tfp
+# import tensorflow as tf
+# import tensorflow_probability as tfp
 import seaborn as sns
-tfd = tfp.distributions
+# tfd = tfp.distributions
 sns.set_context('notebook')
+# If running this file on the cluster, pay attention to the tensorflow comment section!
 
 
 class SWLDAPred(EEGPreFun):
@@ -122,7 +123,7 @@ class SWLDAPred(EEGPreFun):
             eeg_signals_mean_0_sub.astype(self.DAT_TYPE),
             eeg_signals_cov_sub.astype(self.DAT_TYPE)
         ]
-
+    '''
     def swlda_produce_two_step_estimation(
             self, eeg_signals_trun_sub, eeg_code,
             eeg_signals_trun_t_mean, eeg_signals_trun_nt_mean,
@@ -222,6 +223,7 @@ class SWLDAPred(EEGPreFun):
         letter_pred_matrix = np.stack(letter_pred_matrix, axis=0)
 
         return letter_pred_matrix
+    '''
 
     def save_swlda_pred_results(self, new_swlda_result,
                                 sub_folder_name, trn_rep_dim):
