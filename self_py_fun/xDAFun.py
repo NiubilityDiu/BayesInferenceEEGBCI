@@ -41,6 +41,19 @@ class XDAGibbs(EEGPreFun):
         self.identity = np.eye(self.u)
         self.identity_n = np.eye(self.n_length)
 
+    def create_method_folder(self, method_name='emp_bayes_lda', real_data=True):
+
+        if real_data:
+            dir_name = '{}/{}/{}/{}'.format(self.parent_path, self.data_type, self.sub_folder_name[:4], method_name)
+        else:
+            dir_name = '{}/{}/{}/{}'.format(self.parent_path, self.data_type, self.sub_folder_name, method_name)
+
+        try:
+            os.mkdir(dir_name)
+            print('Directory', dir_name, ' is created.')
+        except FileExistsError:
+            print('Directory ', dir_name, ' already exists.')
+
     def obtain_pre_processed_signals(
             self, raw_signals, eeg_code, eeg_type, std_bool=True
     ):
@@ -97,17 +110,12 @@ class XDAGibbs(EEGPreFun):
         # sum, 3d-array
         train_x_tar_sum = np.sum(train_x_mat_tar, axis=0)
         train_x_ntar_sum = np.sum(train_x_mat_ntar, axis=0)
-        # print('train_x_mat_tar has shape {}'.format(train_x_mat_tar.shape))
-        # print('train_x_mat_ntar has shape {}'.format(train_x_mat_ntar.shape))
-        # print('signals_train_all_mean has shape {}'.format(signals_train_all_mean.shape))
-        # print('signals_train_tar_mean has shape {}'.format(signals_train_tar_mean.shape))
-        # print('signals_train_ntar_mean has shape {}'.format(signals_train_ntar_mean.shape))
 
         if std_bool:
             print('We standard raw truncated segments by signals_train_all_mean.')
             # data, original 4d-dimension
             signals_all -= signals_train_all_mean[np.newaxis, ...]
-            # signals_train -= signals_train_all_mean[np.newaxis, ...]
+            signals_train -= signals_train_all_mean[np.newaxis, ...]
             train_x_mat_tar -= signals_train_all_mean[np.newaxis, ...]
             train_x_mat_ntar -= signals_train_all_mean[np.newaxis, ...]
             # statistics, reduced dimension (no need add new dimension)
@@ -117,7 +125,7 @@ class XDAGibbs(EEGPreFun):
             signals_train_ntar_mean -= signals_train_all_mean
 
         return [
-            signals_all,
+            signals_all, signals_train,
             train_x_mat_tar, train_x_mat_ntar,
             signals_train_tar_mean, signals_train_ntar_mean,
             train_x_tar_sum, train_x_ntar_sum,
@@ -125,12 +133,13 @@ class XDAGibbs(EEGPreFun):
             eeg_code_3d
         ]
 
-    def create_initial_values_lda(self, s_sq_est):
+    def create_initial_values_bayes_lda(self, s_sq_est, rho_est, channel_ids):
 
         r"""
         args:
         -----
-            s_sq_est: array_like, (1, num_electrode), preliminary estimates from raw signals
+            s_sq_est: array_like, (num_electrode)
+            rho_est: array_like, (num_electrode, q)
         return:
         -----
             A list of containing five arrays,
@@ -138,55 +147,56 @@ class XDAGibbs(EEGPreFun):
             delta_ntar_mcmc, array_like, (1, num_electrode, u)
             lambda_mcmc, array_like, (1, num_electrode)
             gamma_mcmc, array_like, (1, num_electrode, n_length)
-            s_sq_mcmc, array_like, (1, num_electrode)
-            rho_mcmc, array_like, (1, num_electrode)
-        """
-        delta_tar_mcmc = np.stack([stats.multivariate_normal(
-            mean=self.mu_1_delta[i, :, 0],
-            cov=self.sigma_sq_delta).rvs(1)[np.newaxis, :, np.newaxis]
-                                 for i in range(self.num_electrode)], axis=1)
+            s_sq_mcmc, array_like, (1, num_electrode) (only when s_sq_est is not None)
+            rho_mcmc, array_like, (1, num_electrode, q) (only when s_sq_est is not None)
 
-        delta_ntar_mcmc = np.stack([stats.multivariate_normal(
-            mean=self.mu_0_delta[i, :, 0],
-            cov=self.sigma_sq_delta).rvs(1)[np.newaxis, :, np.newaxis]
-                                 for i in range(self.num_electrode)], axis=1)
+        note:
+        -----
+            need to modify this function later on when there are many rhos in the precision matrix!
+        """
+        delta_tar_mcmc = self.mu_1_delta[np.newaxis, ...]
+        delta_ntar_mcmc = self.mu_0_delta[np.newaxis, ...]
+        ee = len(channel_ids)
 
         # lambda_tar_mcmc = np.ones([1, self.num_electrode])
-        lambda_mcmc = np.ones([1, self.num_electrode])
+        lambda_mcmc = np.ones([1, ee])
+        gamma_mcmc = np.random.binomial(1, 0.5, size=(1, ee, self.n_length))
 
-        gamma_mcmc = np.random.binomial(1, 0.5, size=(1, self.num_electrode, self.n_length))
+        s_sq_mcmc = s_sq_est[np.newaxis, :]
+        rho_mcmc = rho_est[np.newaxis, ...]
+        param_mcmc_list = [delta_tar_mcmc, delta_ntar_mcmc, lambda_mcmc, gamma_mcmc, s_sq_mcmc, rho_mcmc]
 
-        rho_mcmc = np.random.uniform(low=0, high=1, size=(1, self.num_electrode))
-        s_sq_mcmc = s_sq_est * np.ones([1, self.num_electrode])
+        return param_mcmc_list
 
-        return delta_tar_mcmc, delta_ntar_mcmc, lambda_mcmc, gamma_mcmc, s_sq_mcmc, rho_mcmc
+    def create_initial_values_empirical_bayes_lda(self, channel_ids):
 
-    def block_diagonal_mat(self, gamma_mat, channel_ids=None):
+        ee = len(channel_ids)
+        delta_tar_mcmc = self.mu_1_delta[np.newaxis, ...]
+        delta_ntar_mcmc = self.mu_0_delta[np.newaxis, ...]
+
+        lambda_mcmc = np.ones([1, ee])
+        gamma_mcmc = np.random.binomial(1, 0.5, size=(1, ee, self.n_length))
+        param_mcmc_list = [delta_tar_mcmc, delta_ntar_mcmc, lambda_mcmc, gamma_mcmc]
+
+        return param_mcmc_list
+
+    def block_diagonal_mat(self, gamma_mat, channel_ids):
         r"""
-        :param channel_ids: integer array_like
         :param gamma_mat: array_like, (num_electrode, n_length):
-
-        :return:
-            diagonal gamma matrix, array_like, (num_electrode, n_length, n_length):
+        :param channel_ids: integer array_like
+        :return: diagonal gamma matrix, array_like, (num_electrode, n_length, n_length):
         """
-        if channel_ids is None:
-            assert gamma_mat.shape == (self.num_electrode, self.n_length), \
-                print('wrong channel dimension {}, should be {}'.format(gamma_mat.shape,
-                                                                        (self.num_electrode, self.n_length)))
-            gamma_mat = np.stack([np.diag(gamma_mat[i, :])
-                                  for i in range(self.num_electrode)], axis=0)
-        else:
-            assert gamma_mat.shape == (len(channel_ids), self.n_length), \
-                print('wrong channel dimension {}, should be {}'.format(gamma_mat.shape,
-                                                                        (len(channel_ids), self.n_length)))
-            gamma_mat = np.stack([np.diag(gamma_mat[i, :])
-                                  for i in range(len(channel_ids))], axis=0)
+        assert gamma_mat.shape == (len(channel_ids), self.n_length), \
+            print('wrong channel dimension {}, should be {}'.format(gamma_mat.shape,
+                                                                    (len(channel_ids), self.n_length)))
+        gamma_mat = np.stack([np.diag(gamma_mat[i, :])
+                              for i in range(len(channel_ids))], axis=0)
         return gamma_mat
 
     def update_delta_tar_post_lda_2(
             self, delta_ntar, lambda_iter,
             gamma_mat, pres_mat,
-            trun_x_tar_sum, trun_x_ntar_sum, phi_fn
+            trun_x_tar_sum, trun_x_ntar_sum, phi_fn, channel_ids
     ):
         r"""
         args:
@@ -208,6 +218,7 @@ class XDAGibbs(EEGPreFun):
                should have the dimension (num_electrode, n_length, 1)
             phi_fn: array_like
                 basis function with gaussian kernel, should have dimension (num_electrode, n_length, u)
+            channel_ids: integer_array
 
         return:
         -----
@@ -216,7 +227,7 @@ class XDAGibbs(EEGPreFun):
         """
 
         lambda_iter = lambda_iter[:, np.newaxis, np.newaxis]
-        gamma_mat = self.block_diagonal_mat(gamma_mat)
+        gamma_mat = self.block_diagonal_mat(gamma_mat, channel_ids)
         idns = self.identity_n[np.newaxis, ...]
         phi_fn_t = np.transpose(phi_fn, [0, 2, 1])
 
@@ -251,7 +262,7 @@ class XDAGibbs(EEGPreFun):
 
     def update_delta_ntar_post_lda_2(
             self, delta_tar, lambda_iter, gamma_mat, pres_mat,
-            trun_x_tar_sum, trun_x_ntar_sum, phi_fn
+            trun_x_tar_sum, trun_x_ntar_sum, phi_fn, channel_ids
     ):
         r"""
         args:
@@ -282,7 +293,7 @@ class XDAGibbs(EEGPreFun):
         """
 
         lambda_iter = lambda_iter[:, np.newaxis, np.newaxis]
-        gamma_mat = self.block_diagonal_mat(gamma_mat)
+        gamma_mat = self.block_diagonal_mat(gamma_mat, channel_ids)
         idns = self.identity_n[np.newaxis, ...]
         phi_fn_t = np.transpose(phi_fn, [0, 2, 1])
 
@@ -315,54 +326,54 @@ class XDAGibbs(EEGPreFun):
 
         return delta_ntar_post
 
-    def compute_trun_x_sum(self, trun_x_mat, trun_x_1_indices, trun_x_0_indices):
+    # def compute_trun_x_sum(self, trun_x_mat, trun_x_1_indices, trun_x_0_indices):
+    #
+    #     r"""
+    #     args:
+    #     -----
+    #         trun_x_mat: array_like
+    #             truncated matrix X_{v,i,j,e}, should have the dimension of
+    #             (total_beta_num, self.num_electrode, self.n_length, 1)
+    #         trun_x_1_indices: array_like
+    #             1d binary array containing indices of truncated segments associated with
+    #             target stimuli
+    #         trun_x_0_indices: array_like
+    #             1d binary array containing indices of truncated segments associated with
+    #             non-target stimuli
+    #
+    #     Returns:
+    #     -----
+    #         a list with two elements. Each element is an array with dimension
+    #         (self.num_electrode, self.n_length, 1)
+    #     """
+    #     total_batch_num = int(self.batch_dim_tar + self.batch_dim_ntar)
+    #     assert trun_x_mat.shape == (total_batch_num,
+    #                                 self.num_electrode,
+    #                                 self.n_length, 1), \
+    #         print('Wrong trun_x_mat shape {}, should be {}'
+    #               .format(trun_x_mat.shape, (total_batch_num,
+    #                                          self.num_electrode,
+    #                                          self.n_length, 1)))
+    #
+    #     trun_x_mat_1 = trun_x_mat[trun_x_1_indices, ...]
+    #     trun_x_mat_0 = trun_x_mat[trun_x_0_indices, ...]
+    #
+    #     trun_x_mat_1 = np.sum(trun_x_mat_1, axis=0)
+    #     trun_x_mat_0 = np.sum(trun_x_mat_0, axis=0)
+    #
+    #     return trun_x_mat_1, trun_x_mat_0
 
-        r"""
-        args:
-        -----
-            trun_x_mat: array_like
-                truncated matrix X_{v,i,j,e}, should have the dimension of
-                (total_beta_num, self.num_electrode, self.n_length, 1)
-            trun_x_1_indices: array_like
-                1d binary array containing indices of truncated segments associated with
-                target stimuli
-            trun_x_0_indices: array_like
-                1d binary array containing indices of truncated segments associated with
-                non-target stimuli
-
-        Returns:
-        -----
-            a list with two elements. Each element is an array with dimension
-            (self.num_electrode, self.n_length, 1)
-        """
-        total_batch_num = int(self.batch_dim_tar + self.batch_dim_ntar)
-        assert trun_x_mat.shape == (total_batch_num,
-                                    self.num_electrode,
-                                    self.n_length, 1), \
-            print('Wrong trun_x_mat shape {}, should be {}'
-                  .format(trun_x_mat.shape, (total_batch_num,
-                                             self.num_electrode,
-                                             self.n_length, 1)))
-
-        trun_x_mat_1 = trun_x_mat[trun_x_1_indices, ...]
-        trun_x_mat_0 = trun_x_mat[trun_x_0_indices, ...]
-
-        trun_x_mat_1 = np.sum(trun_x_mat_1, axis=0)
-        trun_x_mat_0 = np.sum(trun_x_mat_0, axis=0)
-
-        return trun_x_mat_1, trun_x_mat_0
-
-    @staticmethod
-    def compute_x_p(trun_x_sum, pres_mat):
-
-        r"""
-        trun_x_sum: array_like
-        pres_mat: square matrix
-        return:
-            the array (sum X)^T @ precision_matrix,
-            should have the dimension (16, 1, 25)
-        """
-        return np.matmul(np.transpose(trun_x_sum, [0, 2, 1]), pres_mat)
+    # @staticmethod
+    # def compute_x_p(trun_x_sum, pres_mat):
+    #
+    #     r"""
+    #     trun_x_sum: array_like
+    #     pres_mat: square matrix
+    #     return:
+    #         the array (sum X)^T @ precision_matrix,
+    #         should have the dimension (16, 1, 25)
+    #     """
+    #     return np.matmul(np.transpose(trun_x_sum, [0, 2, 1]), pres_mat)
 
     @staticmethod
     def compute_ising_log_prior(
@@ -397,14 +408,15 @@ class XDAGibbs(EEGPreFun):
     def update_gamma_post_2(
             self, gamma_mat_pre, delta_tar, delta_ntar,
             lambda_iter, pres_mat_pre,
-            tau, trun_x_mat_tar, trun_x_mat_ntar, phi_fn, beta_ising, gamma_neighbor
+            tau, trun_x_mat_tar, trun_x_mat_ntar, phi_fn,
+            channel_ids, beta_ising, gamma_neighbor
     ):
         r"""
         args:
         -----
             gamma_mat_pre: array_like
                 probability of selection indicators of all electrodes from previous iteration,
-                should have dimension of (self.num_electrode, self.n_length)
+                should have dimension of (num_electrode, self.n_length)
             delta_tar: array_like,
                 should have dimension (num_electrode, u, 1)
             delta_ntar: array_like,
@@ -432,6 +444,7 @@ class XDAGibbs(EEGPreFun):
             we assume independence across channels, and we update gamma_mat across channels as well.
         """
 
+        ee = len(channel_ids)
         # Construct proposed state (binary, so we can enumerate them)
         gamma_mat_post_channel_tau_0 = np.copy(gamma_mat_pre)
         gamma_mat_post_channel_tau_0[:, tau] = 0
@@ -449,18 +462,18 @@ class XDAGibbs(EEGPreFun):
         quad_select = self.compute_sampling_log_lhd(
             delta_tar, delta_ntar, lambda_iter,
             gamma_mat_post_channel_tau_1, pres_mat_pre,
-            trun_x_mat_tar, trun_x_mat_ntar, phi_fn)
+            trun_x_mat_tar, trun_x_mat_ntar, phi_fn, channel_ids)
         # print('quad_select has shape {}'.format(quad_select.shape))
         # target, not select tau-th feature across channels
         quad_nselect = self.compute_sampling_log_lhd(
             delta_tar, delta_ntar, lambda_iter,
             gamma_mat_post_channel_tau_0, pres_mat_pre,
-            trun_x_mat_tar, trun_x_mat_ntar, phi_fn)
+            trun_x_mat_tar, trun_x_mat_ntar, phi_fn, channel_ids)
         # print('quad_nselect has shape {}'.format(quad_nselect.shape))
 
         quad_log_odds = quad_select + ising_select_log - quad_nselect - ising_nselect_log
         quad_prop = np.zeros_like(quad_log_odds)
-        for e in range(self.num_electrode):
+        for e in range(ee):
             # Avoid np.exp() overflow
             if quad_log_odds[e] >= 100:
                 quad_prop[e] = 1
@@ -470,149 +483,19 @@ class XDAGibbs(EEGPreFun):
 
         gamma_mat_post = np.copy(gamma_mat_pre)
         quad_ind = [np.random.binomial(1, quad_prop[i], 1)[0]
-                    for i in range(self.num_electrode)]
+                    for i in range(ee)]
         gamma_mat_post[:, tau] = np.array(quad_ind)
 
         return gamma_mat_post
 
-    # def compute_quad_sum_2(
-    #         self, delta_tar, delta_ntar,
-    #         lambda_iter,
-    #         pres_mat, gamma_mat_pre,
-    #         xp_tar, xp_ntar, phi_fn
-    # ):
-    #     r"""
-    #     args:
-    #     -----
-    #         delta_tar: array_like
-    #         delta_ntar: array_like
-    #         lambda_iter: array_like, (num_electrode,)
-    #         pres_mat: array_like, (num_electrode, n_length, n_length)
-    #         gamma_mat_pre: array_like, (num_electrode, n_length)
-    #         xp_tar: array_like
-    #             xp_tar = (sum X_tar)^T @ pres_mat with shape (channel_dim, 1, n_length)
-    #         xp_ntar: array_like
-    #             xp_ntar = (sum X_ntar)^T @ pres_mat with shape (channel_dim, 1, n_length)
-    #         phi_fn: array_like
-    #             (num_electrode, n_length, u) smoothing kernel matrix
-    #
-    #     return:
-    #     -----
-    #         array_like, expect to have shape (num_electrode, 1, 1)
-    #
-    #         (sum X_tar)^T @ pres_mat @ mean_tar - 1/2 * batch_dim_tar * mean_tar^T @ pres_mat @ mean_tar +
-    #         (sum X_ntar)^T @ pres_mat @ mean_ntar - 1/2 * batch_dim_ntar * mean_ntar^T @ pres_mat @ mean_ntar
-    #
-    #     notes:
-    #     -----
-    #         for target signals:
-    #         mean_tar = 1/2 * (I + Gamma_e) @ phi_fn @ (lambda_tar * delta_tar)
-    #         + 1/2 * (I - Gamma_e) @ phi_fn @ (lambda_ntar * delta_ntar)
-    #         for non-target signals:
-    #         mean_ntar = 1/2 * (I + Gamma_e) @ phi_fn @ (lambda_ntar * delta_ntar)
-    #         + 1/2 * (I - Gamma_e) @ phi_fn @ (lambda_tar * delta_tar)
-    #
-    #         In general, for target:
-    #         mean_tar = (a1 * I + a0 * Gamma_e) @ phi_fn @ (lambda_iter * delta_tar)
-    #         + a0 (I - Gamma_e) @ phi_fn @ (lambda_iter * delta_ntar)
-    #         for non-target:
-    #         mean_ntar = (a0 * I + a1 * Gamma_e) @ phi_fn @ (lambda_iter @ delta_ntar)
-    #         + a1 (I - Gamma_e) @ phi_fn @ (lambda_iter * delta_tar)
-    #     """
-    #
-    #     lambda_iter = lambda_iter[:, np.newaxis, np.newaxis]
-    #     gamma_mat_pre = self.block_diagonal_mat(gamma_mat_pre)
-    #     idns = self.identity_n[np.newaxis, ...]
-    #     # phi_fn_t = np.transpose(phi_fn, [0, 2, 1])
-    #
-    #     a1_I_a0_gamma = self.a1 * idns + self.a0 * gamma_mat_pre
-    #     a1_I_gamma = self.a1 * (idns - gamma_mat_pre)
-    #     a0_I_a1_gamma = self.a0 * idns + self.a1 * gamma_mat_pre
-    #     a0_I_gamma = self.a0 * (idns - gamma_mat_pre)
-    #
-    #     mean_tar = lambda_iter * (a1_I_a0_gamma @ phi_fn @ delta_tar + a0_I_gamma @ phi_fn @ delta_ntar)
-    #     mean_ntar = lambda_iter * (a0_I_a1_gamma @ phi_fn @ delta_ntar + a1_I_gamma @ phi_fn @ delta_tar)
-    #     mean_tar_t = np.transpose(mean_tar, [0, 2, 1])
-    #     mean_ntar_t = np.transpose(mean_ntar, [0, 2, 1])
-    #
-    #     q_tar_1 = xp_tar @ mean_tar
-    #     q_tar_2 = self.batch_dim_tar * mean_tar_t @ pres_mat @ mean_tar
-    #
-    #     q_ntar_1 = xp_ntar @ mean_ntar
-    #     q_ntar_2 = self.batch_dim_ntar * mean_ntar_t @ pres_mat @ mean_ntar
-    #
-    #     return q_tar_1 - 1/2 * q_tar_2 + q_ntar_1 - 1/2 * q_ntar_2
-
-    # def compute_outer_prod_sum_2(
-    #         self, delta_tar, delta_ntar, lambda_tar, lambda_ntar,
-    #         gamma_mat, trun_x_mat, trun_x_tar_indices, trun_x_ntar_indices, phi_fn
-    # ):
-    #     r"""
-    #     args:
-    #     -----
-    #         delta_tar: array_like
-    #             The mean vector for target stimuli across 16 electrodes
-    #             should have the dimension of (self.feature_length, 1)
-    #         delta_ntar: array_like
-    #             The mean vector for non-target stimuli across 16 electrodes
-    #             should have the same dimension as delta_1
-    #         lambda_tar: array_like
-    #             should have (num_electrode,)
-    #         lambda_ntar: array_like
-    #             should have (num_electrode,)
-    #         gamma_mat: array_like
-    #             selection indicator matrix,
-    #             should have the dimension (self.num_electrode, self.n_length)
-    #         trun_x_mat: array_like
-    #             The entire truncated segments X_{v,i,j,e}, should have the dimension of
-    #             (letter_dim * repet_dim * self.num_rep, self.num_electrode, self.n_length, 1)
-    #         trun_x_tar_indices: array_like
-    #             1d binary array corresponding to all target stimuli
-    #         trun_x_ntar_indices: array_like
-    #             1d binary array corresponding to all non-target stimuli
-    #         phi_fn: array_like
-    #             (num_electrode, n_length, u) smoothing kernel matrix
-    #
-    #     Returns:
-    #     -----
-    #     A list with two arrays,
-    #         1st: summation of outer product of
-    #             X_tar - gamma_plus_half_phi @ delta_tar - gamma_minus_half_phi @ delta_ntar,
-    #         2nd: summation of outer product of
-    #             X_ntar - gamma_plus_half_phi @ delta_ntar - gamma_minus_half_phi @ delta_tar
-    #     Each array should have the dimension (channel_dim, n_length, n_length).
-    #     """
-    #     lambda_tar = lambda_tar[:, np.newaxis, np.newaxis]
-    #     lambda_ntar = lambda_ntar[:, np.newaxis, np.newaxis]
-    #
-    #     gamma_mat = self.block_diagonal_mat(gamma_mat)
-    #     trun_x_mat_tar = trun_x_mat[trun_x_tar_indices, ...]
-    #     trun_x_mat_ntar = trun_x_mat[trun_x_ntar_indices, ...]
-    #     '''
-    #     gamma_plus_half_phi = 1/2 * (np.eye(self.n_length) + gamma_mat) @ phi_fn
-    #     gamma_minus_half_phi = 1/2 * (np.eye(self.n_length) - gamma_mat) @ phi_fn
-    #     '''
-    #     gamma_plus_half_phi = (self.a1 * np.eye(self.n_length)[np.newaxis, ...] + self.a0 * gamma_mat) @ phi_fn
-    #     gamma_minus_half_phi = self.a0 * (np.eye(self.n_length)[np.newaxis, ...] - gamma_mat) @ phi_fn
-    #
-    #     mean_tar = gamma_plus_half_phi @ (lambda_tar * delta_tar) + gamma_minus_half_phi @ (lambda_tar * delta_ntar)
-    #     mean_ntar = gamma_plus_half_phi @ (lambda_ntar * delta_ntar) + gamma_minus_half_phi @ (lambda_tar * delta_tar)
-    #
-    #     trun_x_mat_tar_diff = trun_x_mat_tar - mean_tar[np.newaxis, ...]
-    #     trun_x_mat_ntar_diff = trun_x_mat_ntar - mean_ntar[np.newaxis, ...]
-    #
-    #     out_prod_tar = np.sum(trun_x_mat_tar_diff @ np.transpose(trun_x_mat_tar_diff, [0, 1, 3, 2]), axis=0)
-    #     out_prod_ntar = np.sum(trun_x_mat_ntar_diff @ np.transpose(trun_x_mat_ntar_diff, [0, 1, 3, 2]), axis=0)
-    #
-    #     return [out_prod_tar, out_prod_ntar]
-
-    def generate_proposal_ar1_pres_mat(self, sigma_sq, rho, channel_ids=None):
+    def generate_proposal_arq_pres_mat(self, sigma_sq, rho, channel_ids, q=1):
         r"""
         args:
         -----
-            sigma_sq: array_like, should have dimension (channel_dim,)
-            rho: array_like, the auto-correlation, assumed between 0 and 1, should have dimension (channel_dim,)
+            sigma_sq: array_like, (channel_dim,)
+            rho: array_like, (channel_dim, q)
             channel_ids: integer array_like
+            q: autoregressive order
         return:
         -----
             array_like
@@ -629,31 +512,32 @@ class XDAGibbs(EEGPreFun):
             The final precision matrix, P = U**(-1/2) @ Corr_inv @ U**(-1/2) if we have heterogeneous sigma_sq.
             https://mathoverflow.net/questions/65795/inverse-of-an-ar1-or-laplacian-or-kac-murdock-szegö-matrix/65819
         """
-        if channel_ids is None:
-            ee = self.num_electrode
+        ee = len(channel_ids)
+        band_mat = np.zeros(shape=[ee, self.n_length, self.n_length])
+        if q == 1:
+            for e in range(ee):
+                first_col_e = np.zeros([self.n_length])
+                first_col_e[1] = -rho[e, 0]
+                band_mat[e, ...] = self.create_toeplitz_cov_mat(sigma_sq=1.0, first_column=first_col_e)
+                vary_diag_vec = np.zeros([self.n_length]) + 1 + rho[e, 0] ** 2
+                vary_diag_vec[0] = 1
+                vary_diag_vec[-1] = 1
+                band_mat[e, ...] += np.diag(vary_diag_vec)
+                band_mat[e, ...] *= 1 / (sigma_sq[e] * (1 - rho[e, 0] ** 2))
+
         else:
-            ee = len(channel_ids)
-        tri_diag_mat = np.zeros(shape=[ee, self.n_length, self.n_length])
-        for e in range(ee):
-            first_col_e = np.zeros([self.n_length])
-            first_col_e[1] = -rho[e]
-            tri_diag_mat[e, ...] = self.create_toeplitz_cov_mat(sigma_sq=1.0, first_column=first_col_e)
-            vary_diag_vec = np.zeros([self.n_length]) + 1 + rho[e] ** 2
-            vary_diag_vec[0] = 1
-            vary_diag_vec[-1] = 1
-            tri_diag_mat[e, ...] += np.diag(vary_diag_vec)
-            tri_diag_mat[e, ...] *= 1 / (sigma_sq[e] * (1 - rho[e] ** 2))
+            for e in range(ee):
+                left_1 = np.array([1])
+                ar_q = rho[e, :]
+                right_0 = np.zeros([self.n_length - q - 1])
+                first_col_e = np.concatenate([left_1, ar_q, right_0], axis=0)
+                # print(first_col_e.shape)
+                band_mat[e, ...] = self.create_toeplitz_cov_mat(1/sigma_sq[e], first_col_e)
 
-        '''
-        # heterogeneous diagonal sigma_sq, so each part should be sqrt(sigma_sq) = sigma
-        # sigma = 1/np.sqrt(sigma_sq)
-        # sigma_mat = self.block_diagonal_mat(sigma)
-        # tri_diag_mat = sigma_mat @ tri_diag_mat @ sigma_mat
-        '''
+        return band_mat
 
-        return tri_diag_mat
-
-    def generate_proposal_lambda_state(self, lambda_old, zeta_lambda):
+    @staticmethod
+    def generate_proposal_lambda_state(lambda_old, zeta_lambda, channel_ids):
         r"""
         args:
         -----
@@ -668,18 +552,20 @@ class XDAGibbs(EEGPreFun):
         -----
             proposal distribution to generate kernel variance parameter
         """
+        ee = len(channel_ids)
         lambda_new = stats.multivariate_normal(
-            mean=lambda_old, cov=zeta_lambda*np.eye(self.num_electrode)
+            mean=lambda_old, cov=zeta_lambda*np.eye(ee)
         ).rvs(1)
-        if self.num_electrode == 1:
+        if ee == 1:
             lambda_new = np.array([lambda_new])
-        for e in range(self.num_electrode):
+        for e in range(ee):
             if lambda_new[e] <= 0:
                 lambda_new[e] = np.copy(lambda_old[e])
 
         return lambda_new
 
-    def generate_proposal_s_sq_state(self, s_sq_old, zeta_s):
+    @staticmethod
+    def generate_proposal_s_sq_state(s_sq_old, zeta_s, channel_ids):
         r"""
         args:
         -----
@@ -694,24 +580,26 @@ class XDAGibbs(EEGPreFun):
         -----
             I change the s_sq to sigma_sq for MCMC estimation purpose.
         """
+        ee = len(channel_ids)
         s_sq_new = stats.multivariate_normal(
-            mean=s_sq_old, cov=zeta_s*np.eye(self.num_electrode)
+            mean=s_sq_old, cov=zeta_s*np.eye(ee)
         ).rvs(1)
-        if self.num_electrode == 1:
+        if ee == 1:
             s_sq_new = np.array([s_sq_new])
-        for e in range(self.num_electrode):
+        for e in range(ee):
             if s_sq_new[e] <= 0:
                 s_sq_new[e] = np.copy(s_sq_old[e])
 
         return s_sq_new
 
-    def generate_proposal_rho_state(self, rho_old, zeta_rho):
+    @staticmethod
+    def generate_proposal_rho_state(rho_old, zeta_rho, channel_ids, q=1):
         r"""
         args:
         -----
-            rho_old: array_like, previous state of rho, (num_electrode,)
-            zeta_rho: arrya_like, step size of random walk, (num_electrode,)
-
+            rho_old: array_like, (num_electrode, q),
+            zeta_rho: arrya_like, (num_electrode, q)
+            q: autoregressive order
         return:
         -----
             A new array of the same size as rho_old,
@@ -720,19 +608,25 @@ class XDAGibbs(EEGPreFun):
         -----
             Need to check the constraint before final return
         """
+        ee = len(channel_ids)
+        rho_old = np.reshape(rho_old, [q * ee])
+        zeta_rho = np.reshape(zeta_rho, [q * ee])
+        # print(zeta_rho)
         rho_new = stats.multivariate_normal(
-            mean=rho_old, cov=zeta_rho*np.eye(self.num_electrode)
+            mean=rho_old, cov=np.diag(zeta_rho)
         ).rvs(1)
-        if self.num_electrode == 1:
+        if q == 1 and ee == 1:
             rho_new = np.array([rho_new])
-
-        for e in range(self.num_electrode):
-            if rho_new[e] <= 0 or rho_new[e] >= 1:
-                rho_new[e] = rho_old[e]
+        print('proposed rho = {}'.format(rho_new))
+        # Check whether rho_new has overflown
+        overflow_indices = (rho_new > 1) + (rho_new < -1)
+        # print(overflow_indices)
+        rho_new[overflow_indices] = np.copy(rho_old[overflow_indices])
+        rho_new = np.reshape(rho_new, [ee, q])
 
         return rho_new
 
-    def compute_log_prior_ratio_s_sq(self, s_sq_old, s_sq_new, alpha_s, beta_s):
+    def compute_log_prior_ratio_s_sq(self, s_sq_old, s_sq_new, alpha_s, beta_s, channel_ids):
         r"""
         args:
         -----
@@ -751,7 +645,7 @@ class XDAGibbs(EEGPreFun):
             Not to be confused, I always use alpha, beta parametrization
             where beta_s is the inverse of scale.
         """
-        assert s_sq_new.shape == s_sq_old.shape == (self.num_electrode,)
+        assert s_sq_new.shape == s_sq_old.shape == (len(channel_ids),)
 
         s_sq_rv = stats.invgamma(a=alpha_s)
         s_sq_old_log_pdf = s_sq_rv.logpdf(s_sq_old * beta_s)
@@ -759,7 +653,7 @@ class XDAGibbs(EEGPreFun):
 
         return s_sq_new_log_pdf - s_sq_old_log_pdf
 
-    def compute_log_prior_ratio_lambda(self, lambda_old, lambda_new, alpha_s, beta_s):
+    def compute_log_prior_ratio_lambda(self, lambda_old, lambda_new, alpha_s, beta_s, channel_ids):
         r"""
         args:
         -----
@@ -777,7 +671,7 @@ class XDAGibbs(EEGPreFun):
             Not to be confused, I always use alpha, beta parametrization
             beta_s is the inverse of scale!
         """
-        assert lambda_new.shape == lambda_old.shape == (self.num_electrode,)
+        assert lambda_new.shape == lambda_old.shape == (len(channel_ids),)
 
         lambda_rv = stats.gamma(a=alpha_s)
         lambda_old_log_pdf = lambda_rv.logpdf(lambda_old * beta_s)
@@ -785,12 +679,15 @@ class XDAGibbs(EEGPreFun):
 
         return lambda_new_log_pdf - lambda_old_log_pdf
 
-    def compute_log_prior_ratio_rho(self, rho_old, rho_new, a=1, b=1):
+    def compute_log_prior_ratio_rho(self, rho_old, rho_new, channel_ids, a=-1, b=1, q=1):
         r"""
         args:
         -----
-            rho_old: array_like, proposed state of rho, (num_electrode,)
-            rho_new: array_like, proposed state of rho, (num_electrode,)
+            rho_old: array_like, proposed state of rho, (num_electrode, q)
+            rho_new: array_like, proposed state of rho, (num_electrode, q)
+            a: hyper-parameter
+            b: hyper-parameter
+            q: autoregressive order
 
         return:
         -----
@@ -800,18 +697,26 @@ class XDAGibbs(EEGPreFun):
         -----
             I assume rho ~ Uniform(0, 1) (or Beta(1, 1)
         """
-        assert rho_new.shape == rho_old.shape == (self.num_electrode,)
+        ee = len(channel_ids)
+        assert rho_new.shape == rho_old.shape == (ee, q)
 
-        rho_rv = stats.beta(a=a, b=b)
-        rho_old_log_pdf = rho_rv.logpdf(rho_old)
-        rho_new_log_pdf = rho_rv.logpdf(rho_new)
+        # rho_rv = stats.beta(a=a, b=b)
+        # rho_old_log_pdf = rho_rv.logpdf(rho_old)
+        # rho_new_log_pdf = rho_rv.logpdf(rho_new)
+
+        # If we assume uniform (-1, 1) prior, then they share the same pdf
+        rho_new_log_pdf = np.sum(np.log(1/(b-a)) * np.ones([ee, q]), axis=-1)
+        rho_old_log_pdf = np.sum(np.log(1/(b-a)) * np.ones([ee, q]), axis=-1)
+
+        # If we assume TruncatedNormal (-1, 1) prior, then
+        # rho_rv = stats.truncnorm()
 
         return rho_new_log_pdf - rho_old_log_pdf
 
     def compute_sampling_log_lhd(
             self, delta_tar, delta_ntar,
             lambda_iter, gamma_mat, pres_mat,
-            trun_x_mat_tar, trun_x_mat_ntar, phi_fn
+            trun_x_mat_tar, trun_x_mat_ntar, phi_fn, channel_ids
     ):
         r"""
         args:
@@ -837,7 +742,7 @@ class XDAGibbs(EEGPreFun):
         # print('lambda_ntar has shape {}'.format(lambda_ntar.shape))
 
         lambda_iter = lambda_iter[:, np.newaxis, np.newaxis]
-        gamma_mat = self.block_diagonal_mat(gamma_mat)
+        gamma_mat = self.block_diagonal_mat(gamma_mat, channel_ids)
         idns = self.identity_n[np.newaxis, ...]
         # phi_fn_t = np.transpose(phi_fn, [0, 2, 1])
 
@@ -848,15 +753,11 @@ class XDAGibbs(EEGPreFun):
 
         mean_tar = lambda_iter * (a1_I_a0_gamma @ phi_fn @ delta_tar + a0_I_gamma @ phi_fn @ delta_ntar)
         mean_ntar = lambda_iter * (a0_I_a1_gamma @ phi_fn @ delta_ntar + a1_I_gamma @ phi_fn @ delta_tar)
-        # print('mean_tar = {}'.format(mean_tar))
-        # print('mean_ntar = {}'.format(mean_ntar))
 
         trun_x_mat_tar_diff = trun_x_mat_tar - mean_tar[np.newaxis, ...]
         trun_x_mat_ntar_diff = trun_x_mat_ntar - mean_ntar[np.newaxis, ...]
         trun_x_mat_tar_diff_t = np.transpose(trun_x_mat_tar_diff, [0, 1, 3, 2])
         trun_x_mat_ntar_diff_t = np.transpose(trun_x_mat_ntar_diff, [0, 1, 3, 2])
-        # print(trun_x_mat_tar_diff.shape)
-        # print(trun_x_mat_tar_diff_t.shape)
 
         # quadtraic part:
         log_quad_sum = -1/2 * (np.sum(trun_x_mat_tar_diff_t @ pres_mat[np.newaxis, ...] @ trun_x_mat_tar_diff, axis=0) +
@@ -865,24 +766,14 @@ class XDAGibbs(EEGPreFun):
         [sgn, logdet_abs] = np.linalg.slogdet(pres_mat)
         log_pres_det = 1/2 * sgn * logdet_abs * self.total_batch_train
 
-        # y_tar_sum = np.sum([stats.multivariate_normal(
-        #     mean=mean_tar[0, :, 0],
-        #     cov=np.linalg.inv(pres_mat[0, ...])).logpdf(x=trun_x_mat_tar[i, 0, :, 0])
-        #                     for i in range(self.batch_dim_tar)], axis=0)
-        # y_ntar_sum = np.sum([stats.multivariate_normal(
-        #     mean=mean_ntar[0, :, 0],
-        #     cov=np.linalg.inv(pres_mat[0, ...])).logpdf(x=trun_x_mat_ntar[i, 0, :, 0])
-        #                      for i in range(self.batch_dim_ntar)], axis=0)
-        # # print('y_tar_sum + y_ntar_sum = {}'.format(y_tar_sum + y_ntar_sum))
-
         return log_quad_sum + log_pres_det
 
     def update_lambda_iter_post_mh(
             self, delta_tar, delta_ntar,
             lambda_old,
-            gamma_mat, s_sq, rho,
-            trun_x_mat_tar, trun_x_mat_ntar, phi_fn,
-            alpha_s, beta_s, zeta_lambda_tar
+            gamma_mat, pres_mat,
+            trun_x_mat_tar, trun_x_mat_ntar, phi_fn, channel_ids,
+            alpha_s, beta_s, zeta_lambda_tar,
     ):
         r"""
            args:
@@ -891,8 +782,7 @@ class XDAGibbs(EEGPreFun):
                delta_ntar: array_like, (num_electrode, u, 1)
                lambda_old: array_like, (num_electrode,)
                gamma_mat: array_like, (num_electrode, n_length)
-               s_sq: array_like, previous state of sigma_sq (covariance), (num_electrode,)
-               rho_old: array_like, previous state of rho, (num_electrode,)
+               pres_mat: array_like, (num_electrode, n_length, n_length)
                trun_x_mat_tar: array_like, (batch_dim_tar, num_electrode, n_length, 1)
                trun_x_mat_ntar: array_like, (batch_dim_ntar, num_electrode, n_length, 1)
                phi_fn: array_like, (num_electrode, n_length, u)
@@ -906,31 +796,29 @@ class XDAGibbs(EEGPreFun):
                acceptance indicator with shape (num_electrode,)
         """
         # Generate new state
-        lambda_new = self.generate_proposal_lambda_state(lambda_old, zeta_lambda_tar)
-        log_prior_ratio = self.compute_log_prior_ratio_s_sq(lambda_old, lambda_new, alpha_s, beta_s)
-
-        # Generate pres_mat_old and pres_mat_new (only change tau-index of lambda_tar_old)
-        pres_mat = self.generate_proposal_ar1_pres_mat(s_sq, rho)
+        ee = len(channel_ids)
+        lambda_new = self.generate_proposal_lambda_state(lambda_old, zeta_lambda_tar, channel_ids)
+        log_prior_ratio = self.compute_log_prior_ratio_s_sq(lambda_old, lambda_new, alpha_s, beta_s, channel_ids)
 
         log_sampling_old = self.compute_sampling_log_lhd(
             delta_tar, delta_ntar, lambda_old,
-            gamma_mat, pres_mat, trun_x_mat_tar, trun_x_mat_ntar, phi_fn
+            gamma_mat, pres_mat, trun_x_mat_tar, trun_x_mat_ntar, phi_fn, channel_ids
         )
 
         log_sampling_new = self.compute_sampling_log_lhd(
             delta_tar, delta_ntar, lambda_new,
-            gamma_mat, pres_mat, trun_x_mat_tar, trun_x_mat_ntar, phi_fn
+            gamma_mat, pres_mat, trun_x_mat_tar, trun_x_mat_ntar, phi_fn, channel_ids
         )
         log_sampling_ratio = log_sampling_new - log_sampling_old
 
         log_alpha_mh = log_prior_ratio + log_sampling_ratio  # log_proposal_ratio = 0
-        log_uniform = np.log(np.random.uniform(low=0, high=1, size=self.num_electrode))
+        log_uniform = np.log(np.random.uniform(low=0, high=1, size=ee))
 
         lambda_post = np.copy(lambda_old)
         # Compute acceptance rate and help adjust step size
         lambda_accept = np.zeros_like(lambda_old)
 
-        for e in range(self.num_electrode):
+        for e in range(ee):
             if log_alpha_mh[e] > 0:
                 log_alpha_mh[e] = 0
 
@@ -940,77 +828,12 @@ class XDAGibbs(EEGPreFun):
 
         return [lambda_post, lambda_accept]
 
-    # def update_lambda_ntar_post_mh(
-    #         self, delta_tar, delta_ntar,
-    #         lambda_tar, lambda_ntar_old,
-    #         gamma_mat, s_sq, rho,
-    #         trun_x_mat_tar, trun_x_mat_ntar, phi_fn,
-    #         alpha_s, beta_s, zeta_lambda_ntar
-    # ):
-    #     r"""
-    #        args:
-    #        -----
-    #            delta_tar: array_like, (num_electrode, u, 1)
-    #            delta_ntar: array_like, (num_electrode, u, 1)
-    #            lambda_tar: array_like, (num_electrode,)
-    #            lambda_ntar_old: array_like, (num_electrode,)
-    #            gamma_mat: array_like, (num_electrode, n_length)
-    #            s_sq: array_like, previous state of sigma_sq, (num_electrode,)
-    #            rho_old: array_like, previous state of rho, (num_electrode,)
-    #            trun_x_mat_tar: array_like, (batch_dim_tar, num_electrode, n_length, 1)
-    #            trun_x_mat_ntar: array_like, (batch_dim_ntar, num_electrode, n_length, 1)
-    #            phi_fn: array_like, (num_electrode, n_length, u)
-    #            alpha_s: hyper-parameter
-    #            beta_s: hyper-parameter
-    #            zeta_lambda_ntar: step size
-    #
-    #        return:
-    #        -----
-    #            A list of two arrays including lambda_tar_post (num_electrode,), and
-    #            acceptance indicator with shape (num_electrode,)
-    #     """
-    #     # Generate new state
-    #     lambda_ntar_new = self.generate_proposal_lambda_state(lambda_ntar_old, zeta_lambda_ntar)
-    #     log_prior_ratio = self.compute_log_prior_ratio_s_sq(lambda_ntar_old, lambda_ntar_new, alpha_s, beta_s)
-    #
-    #     # Generate pres_mat_old and pres_mat_new (only change tau-index of lambda_tar_old)
-    #     pres_mat = self.generate_proposal_ar1_pres_mat(s_sq, rho)
-    #
-    #     log_sampling_old = self.compute_sampling_log_lhd(
-    #         delta_tar, delta_ntar, lambda_tar, lambda_ntar_old,
-    #         gamma_mat, pres_mat, trun_x_mat_tar, trun_x_mat_ntar, phi_fn
-    #     )
-    #
-    #     log_sampling_new = self.compute_sampling_log_lhd(
-    #         delta_tar, delta_ntar, lambda_tar, lambda_ntar_new,
-    #         gamma_mat, pres_mat, trun_x_mat_tar, trun_x_mat_ntar, phi_fn
-    #     )
-    #     log_sampling_ratio = log_sampling_new - log_sampling_old
-    #
-    #     log_alpha_mh = log_prior_ratio + log_sampling_ratio  # log_proposal_ratio = 0
-    #     log_uniform = np.log(np.random.uniform(low=0, high=1, size=self.num_electrode))
-    #
-    #     lambda_ntar_post = np.copy(lambda_ntar_old)
-    #     # Compute acceptance rate and help adjust step size
-    #     lambda_ntar_accept = np.zeros_like(lambda_ntar_old)
-    #
-    #     for e in range(self.num_electrode):
-    #         if log_alpha_mh[e] > 0:
-    #             log_alpha_mh[e] = 0
-    #
-    #         if log_alpha_mh[e] >= log_uniform[e]:
-    #             lambda_ntar_post[e] = np.copy(lambda_ntar_new[e])
-    #             lambda_ntar_accept[e] = 1
-    #
-    #     return [lambda_ntar_post, lambda_ntar_accept]
-
     def update_s_sq_post_mh(
             self, delta_tar, delta_ntar,
-            lambda_iter,
-            gamma_mat,
+            lambda_iter, gamma_mat,
             s_sq_old, rho_old,
-            trun_x_mat_tar, trun_x_mat_ntar, phi_fn,
-            alpha_s, beta_s, zeta_s
+            trun_x_mat_tar, trun_x_mat_ntar, phi_fn, channel_ids,
+            alpha_s, beta_s, zeta_s, q
     ):
         r"""
         args:
@@ -1019,7 +842,7 @@ class XDAGibbs(EEGPreFun):
             delta_ntar: array_like, (num_electrode, u, 1)
             lambda_iter: array_like, (num_electrode,)
             gamma_mat: array_like, (num_electrode, n_length)
-            s_sq_old: array_like, previous state of sigma_sq, (num_electrode,)
+            s_sq_old: array_like, previous state of sigma_sq, (num_electrode, q)
             rho_old: array_like, previous state of rho, (num_electrode,)
             trun_x_mat_tar: array_like, (batch_dim_tar, num_electrode, n_length, 1)
             trun_x_mat_ntar: array_like, (batch_dim_ntar, num_electrode, n_length, 1)
@@ -1027,6 +850,7 @@ class XDAGibbs(EEGPreFun):
             alpha_s: hyper-parameter
             beta_s: hyper-parameter
             zeta_s: step size
+            q: autoregressive order
 
         return:
         -----
@@ -1045,34 +869,35 @@ class XDAGibbs(EEGPreFun):
             Accept if log alpha >= log Uniform (0, 1), reject otherwise
 
         """
-
+        ee = len(channel_ids)
         # Generate proposed state
-        s_sq_new = self.generate_proposal_s_sq_state(s_sq_old, zeta_s)
-        log_prior_ratio = self.compute_log_prior_ratio_s_sq(s_sq_old, s_sq_new, alpha_s, beta_s)
+        s_sq_new = self.generate_proposal_s_sq_state(s_sq_old, zeta_s, channel_ids)
+        log_prior_ratio = self.compute_log_prior_ratio_s_sq(s_sq_old, s_sq_new, alpha_s, beta_s, channel_ids)
 
         # Generate pres_mat_old and pres_mat_new (only change tau-index of s_sq_old)
-        pres_mat_old = self.generate_proposal_ar1_pres_mat(s_sq_old, rho_old)
-        pres_mat_new = self.generate_proposal_ar1_pres_mat(s_sq_new, rho_old)
+        # Currently, we use all channels to perform mcmc
+        pres_mat_old = self.generate_proposal_arq_pres_mat(s_sq_old, rho_old, channel_ids, q)
+        pres_mat_new = self.generate_proposal_arq_pres_mat(s_sq_new, rho_old, channel_ids, q)
 
         log_sampling_old = self.compute_sampling_log_lhd(
             delta_tar, delta_ntar, lambda_iter,
-            gamma_mat, pres_mat_old, trun_x_mat_tar, trun_x_mat_ntar, phi_fn
+            gamma_mat, pres_mat_old, trun_x_mat_tar, trun_x_mat_ntar, phi_fn, channel_ids
         )
 
         log_sampling_new = self.compute_sampling_log_lhd(
             delta_tar, delta_ntar, lambda_iter,
-            gamma_mat, pres_mat_new, trun_x_mat_tar, trun_x_mat_ntar, phi_fn
+            gamma_mat, pres_mat_new, trun_x_mat_tar, trun_x_mat_ntar, phi_fn, channel_ids
         )
         log_sampling_ratio = log_sampling_new - log_sampling_old
 
         log_alpha_mh = log_prior_ratio + log_sampling_ratio  # + log_proposal_ratio = 0
-        log_uniform = np.log(np.random.uniform(low=0, high=1, size=self.num_electrode))
+        log_uniform = np.log(np.random.uniform(low=0, high=1, size=ee))
 
         s_sq_post = np.copy(s_sq_old)
         # Compute acceptance rate and help adjust step size
         s_sq_accept = np.zeros_like(s_sq_old)
 
-        for e in range(self.num_electrode):
+        for e in range(ee):
             if log_alpha_mh[e] > 0:
                 log_alpha_mh[e] = 0
 
@@ -1086,8 +911,8 @@ class XDAGibbs(EEGPreFun):
             self, delta_tar, delta_ntar,
             lambda_iter, gamma_mat,
             s_sq, rho_old,
-            trun_x_mat_tar, trun_x_mat_ntar, phi_fn,
-            zeta_rho
+            trun_x_mat_tar, trun_x_mat_ntar, phi_fn, channel_ids,
+            zeta_rho, q
     ):
         r"""
         args:
@@ -1097,11 +922,12 @@ class XDAGibbs(EEGPreFun):
             lambda_iter: array_like, (num_electrode,)
             gamma_mat: array_like, (num_electrode, n_length)
             s_sq: array_like, iter state of sigma_sq, (num_electrode,)
-            rho_old: array_like, previous state of rho, (num_electrode,)
+            rho_old: array_like, previous state of rho, (num_electrode, q)
             trun_x_mat_tar: array_like, (batch_dim_tar, num_electrode, n_length, 1)
             trun_x_mat_ntar: array_like, (batch_dim_ntar, num_electrode, n_length, 1)
             phi_fn: array_like, (num_electrode, n_length, u)
             zeta_rho: step size, (num_electrode,)
+            q: autoregressive order,
 
         return:
         -----
@@ -1119,143 +945,69 @@ class XDAGibbs(EEGPreFun):
             Accept if log alpha >= log Uniform (0, 1), reject otherwise
 
         """
+
+        ee = len(channel_ids)
         # Generate proposed state
-        rho_new = self.generate_proposal_rho_state(rho_old, zeta_rho)
-        log_prior_ratio = self.compute_log_prior_ratio_rho(rho_old, rho_new)
+        rho_new = self.generate_proposal_rho_state(rho_old, zeta_rho, channel_ids, q)
+        log_prior_ratio = self.compute_log_prior_ratio_rho(rho_old, rho_new, channel_ids, a=-1, b=1, q=q)
 
         # Generate pres_mat_old and pres_mat_new (only change rho)
-        pres_mat_old = self.generate_proposal_ar1_pres_mat(s_sq, rho_old)
-        pres_mat_new = self.generate_proposal_ar1_pres_mat(s_sq, rho_old)
+        channel_ids = np.arange(ee)
+        pres_mat_old = self.generate_proposal_arq_pres_mat(s_sq, rho_old, channel_ids, q=q)
+        pres_mat_new = self.generate_proposal_arq_pres_mat(s_sq, rho_new, channel_ids, q=q)
+        pdf_bool = []
+        # determine whether new pres_mat is positive definite
+        for i in range(ee):
+            pdf_bool_i = self.is_pos_def(pres_mat_new[i, ...])
+            if not pdf_bool_i:
+                pres_mat_new[i, ...] = np.copy(pres_mat_old[i, ...])
+            pdf_bool.append(pdf_bool_i)
+        print(pdf_bool)
 
         log_sampling_old = self.compute_sampling_log_lhd(
             delta_tar, delta_ntar, lambda_iter,
-            gamma_mat, pres_mat_old, trun_x_mat_tar, trun_x_mat_ntar, phi_fn
+            gamma_mat, pres_mat_old, trun_x_mat_tar, trun_x_mat_ntar, phi_fn, channel_ids
         )
         log_sampling_new = self.compute_sampling_log_lhd(
             delta_tar, delta_ntar, lambda_iter,
-            gamma_mat, pres_mat_new, trun_x_mat_tar, trun_x_mat_ntar, phi_fn
+            gamma_mat, pres_mat_new, trun_x_mat_tar, trun_x_mat_ntar, phi_fn, channel_ids
         )
         log_sampling_ratio = log_sampling_new - log_sampling_old
+        # print('log_sampling_new = {}'.format(log_sampling_new))
+        # print('log_sampling_old = {}'.format(log_sampling_old))
+        print('log_sampling_ratio = {}'.format(log_sampling_ratio))
 
         log_alpha_mh = log_prior_ratio + log_sampling_ratio  # log_proposal_ratio = 0
-        log_uniform = np.log(np.random.uniform(low=0, high=1, size=self.num_electrode))
+        log_uniform = np.log(np.random.uniform(low=0, high=1, size=ee))
 
         rho_post = np.copy(rho_old)
         # Compute acceptance rate and help adjust step size
-        rho_accept = np.zeros_like(rho_old)
+        rho_accept = np.zeros([ee])
 
-        for e in range(self.num_electrode):
+        # log_alpha_mh[np.greater(log_alpha_mh, 0)] = 0
+
+        for e in range(ee):
             if log_alpha_mh[e] > 0:
                 log_alpha_mh[e] = 0
 
-            if log_alpha_mh[e] >= log_uniform[e]:
-                rho_post[e] = np.copy(rho_new[e])
-                if rho_new[e] != rho_old[e]:
+            if log_alpha_mh[e] >= log_uniform[e] and pdf_bool[e]:
+                rho_post[e, :] = np.copy(rho_new[e, :])
+                # Here, we update q rhos each time,
+                # shall change it when we sequentially update it.
+                if rho_post[e, 0] != rho_old[e, 0]:
                     rho_accept[e] = 1
 
         return [rho_post, rho_accept]
 
-    def gibbs_single_iteration(
-            self, delta_ntar_old, lambda_old,
-            gamma_mat_iter, s_sq_old, rho_old,
-            trun_x_tar_sum_train, trun_x_ntar_sum_train,
-            trun_x_mat_tar, trun_x_mat_ntar, phi_fn,
-            alpha_s, beta_s, zeta_lambda,
-            zeta_s, zeta_rho, beta_ising, gamma_neighbor
-    ):
-        r"""
-        args:
-        -----
-            delta_ntar_old: array_like, (num_electrode, u, 1)
-            lambda_old: array_like, (num_electrode,)
-            gamma_mat_iter: array_like, (num_electrode, n_length)
-            s_sq_old: array_like, (num_electrode,)
-            rho_old: array_like, (num_electrode,)
-            trun_x_tar_sum_train: array_like, (num_electrode, n_length, 1)
-            trun_x_ntar_sum_train: array_like, (num_electrode, n_length, 1)
-            trun_x_mat_tar: array_like, (batch_dim, num_electrode, n_length, 1)
-            trun_x_mat_ntar: array_like, (batch_dim, num_electrode, n_length, 1)
-            phi_fn: array_like, (num_electrode, n, u)
-            alpha_s, beta_s: floating numbers
-            zeta_lambda: array_like, (num_electrode,)
-            zeta_s: array_like, (num_electrode,)
-            zeta_rho: array_like, (num_electrode,)
-            beta_ising: scale number, hyper-parameter for ising prior
-            gamma_neighbor: integer, threshold for ~ relationship.
-
-        return:
-        -----
-            A list of all parameters updated within one iteration of Gibbs sampler, including
-            delta_tar_post,
-            delta_ntar_post,
-            lambda_post,
-            gamma_mat_iter,
-            s_sq_post,
-            rho_post,
-            s_sq_accept,
-            rho_accept.
-        """
-        pres_mat_old = self.generate_proposal_ar1_pres_mat(s_sq_old, rho_old)
-        # First update delta_tar, delta_ntar
-        delta_tar_post = self.update_delta_tar_post_lda_2(
-            delta_ntar_old, lambda_old,
-            gamma_mat_iter, pres_mat_old,
-            trun_x_tar_sum_train, trun_x_ntar_sum_train, phi_fn
-        )
-        delta_ntar_post = self.update_delta_ntar_post_lda_2(
-            delta_tar_post, lambda_old,
-            gamma_mat_iter, pres_mat_old,
-            trun_x_tar_sum_train, trun_x_ntar_sum_train, phi_fn
-        )
-        # kernel variance lambda_e
-        [lambda_post, lambda_accept] = self.update_lambda_iter_post_mh(
-            delta_tar_post, delta_ntar_post, lambda_old,
-            gamma_mat_iter, s_sq_old, rho_old, trun_x_mat_tar, trun_x_mat_ntar,
-            phi_fn, alpha_s, beta_s, zeta_lambda
-        )
-        # [lambda_ntar_post, lambda_ntar_accept] = self.update_lambda_ntar_post_mh(
-        #     delta_tar_post, delta_ntar_post, lambda_tar_post, lambda_ntar_old,
-        #     gamma_mat_iter, s_sq_old, rho_old, trun_x_mat_tar, trun_x_mat_ntar,
-        #     phi_fn, alpha_s, beta_s, zeta_lambda_ntar
-        # )
-
-        # xp_tar_train = self.compute_x_p(trun_x_tar_sum_train, pres_mat_old)
-        # xp_ntar_train = self.compute_x_p(trun_x_ntar_sum_train, pres_mat_old)
-
-        # Update selection indicator gamma_matrix
-        for tau in range(self.n_length):
-            gamma_mat_iter = self.update_gamma_post_2(
-                gamma_mat_iter, delta_tar_post, delta_ntar_post,
-                lambda_post, pres_mat_old,
-                tau, trun_x_mat_tar, trun_x_mat_ntar, phi_fn, beta_ising, gamma_neighbor
-            )
-        # Update s_sq
-        [s_sq_post, s_sq_accept] = self.update_s_sq_post_mh(
-            delta_tar_post, delta_ntar_post,
-            lambda_post, gamma_mat_iter,
-            s_sq_old, rho_old,
-            trun_x_mat_tar, trun_x_mat_ntar, phi_fn,
-            alpha_s, beta_s, zeta_s
-        )
-        # Update rho
-        [rho_post, rho_accept] = self.update_rho_post_mh(
-            delta_tar_post, delta_ntar_post,
-            lambda_post, gamma_mat_iter,
-            s_sq_post, rho_old, trun_x_mat_tar, trun_x_mat_ntar, phi_fn, zeta_rho
-        )
-
-        return [delta_tar_post, delta_ntar_post,
-                lambda_post, gamma_mat_iter,
-                s_sq_post, rho_post,
-                lambda_accept, s_sq_accept, rho_accept]
-
     def save_bayes_lda_mcmc(
             self, delta_tar_mcmc, delta_ntar_mcmc, lambda_mcmc, gamma_mcmc, s_sq_mcmc, rho_mcmc, log_lhd_mcmc
     ):
-        sio.savemat('{}/{}/{}/{}_lda_mcmc_trn_{}.mat'.
+        method_name = 'bayes_lda'
+        sio.savemat('{}/{}/{}/{}/{}_bayes_lda_mcmc_trn_{}.mat'.
                     format(self.parent_path,
                            self.data_type,
                            self.sub_folder_name[:4],
+                           method_name,
                            self.sub_folder_name,
                            self.trn_repetition),
                     {
@@ -1268,8 +1020,28 @@ class XDAGibbs(EEGPreFun):
                         'log_lhd': log_lhd_mcmc
                     })
 
+    def save_empirical_bayes_lda_mcmc(
+            self, delta_tar_mcmc, delta_ntar_mcmc, lambda_mcmc, gamma_mcmc, log_lhd_mcmc, pres_mat
+    ):
+        method_name = 'emp_bayes_lda'
+        sio.savemat('{}/{}/{}/{}/{}_emp_bayes_lda_mcmc_trn_{}.mat'.
+                    format(self.parent_path,
+                           self.data_type,
+                           self.sub_folder_name[:4],
+                           method_name,
+                           self.sub_folder_name,
+                           self.trn_repetition),
+                    {
+                        'delta_tar': delta_tar_mcmc,
+                        'delta_ntar': delta_ntar_mcmc,
+                        'lambda': lambda_mcmc,
+                        'gamma': gamma_mcmc,
+                        'log_lhd': log_lhd_mcmc,
+                        'pres_mat': pres_mat
+                    })
+
     def import_bayes_lda_mcmc(self):
-        lda_bayes_mcmc = sio.loadmat('{}/{}/{}/{}_lda_mcmc_trn_{}.mat'
+        lda_bayes_mcmc = sio.loadmat('{}/{}/{}/bayes_lda/{}_bayes_lda_mcmc_trn_{}.mat'
                                      .format(self.parent_path,
                                              self.data_type,
                                              self.sub_folder_name[:4],
@@ -1286,6 +1058,26 @@ class XDAGibbs(EEGPreFun):
         log_lhd = lda_bayes_mcmc['log_lhd']
 
         return [delta_tar, delta_ntar, lambda_val, gamma_val, s_sq, rho, log_lhd]
+
+    def import_empirical_bayes_lda_mcmc(self):
+        lda_bayes_mcmc = sio.loadmat('{}/{}/{}/emp_bayes_lda/{}_emp_bayes_lda_mcmc_trn_{}.mat'
+                                     .format(self.parent_path,
+                                             self.data_type,
+                                             self.sub_folder_name[:4],
+                                             self.sub_folder_name,
+                                             self.trn_repetition))
+
+        lda_bayes_mcmc_keys, _ = zip(*lda_bayes_mcmc.items())
+        delta_tar = lda_bayes_mcmc['delta_tar']
+        delta_ntar = lda_bayes_mcmc['delta_ntar']
+        lambda_val = lda_bayes_mcmc['lambda']
+        gamma_val = lda_bayes_mcmc['gamma']
+        # s_sq = lda_bayes_mcmc['s_sq']
+        # rho = lda_bayes_mcmc['rho']
+        log_lhd = lda_bayes_mcmc['log_lhd']
+        pres_mat_band = lda_bayes_mcmc['pres_mat']
+
+        return [delta_tar, delta_ntar, lambda_val, gamma_val, log_lhd, pres_mat_band]
 
     def adjust_s_sq_rho_step_size(self, zeta_s, zeta_rho, s_sq_accept_100, rho_accept_100):
 
@@ -1336,7 +1128,7 @@ class XDAGibbs(EEGPreFun):
             self, delta_tar, delta_ntar,
             lambda_iter,
             gamma_mcmc_mean, message, sim_folder_name, phi_fn,
-            threshold=0.5, mcmc=True,
+            channel_ids, method_name, threshold=0.5, mcmc=True,
             beta_tar_lower=None, beta_tar_upper=None,
             beta_ntar_lower=None, beta_ntar_upper=None
     ):
@@ -1358,7 +1150,7 @@ class XDAGibbs(EEGPreFun):
         -----
             plots of beta_tar vs beta_ntar
         """
-
+        ee = len(channel_ids)
         lambda_iter = lambda_iter[:, np.newaxis, np.newaxis]
 
         if mcmc:
@@ -1374,30 +1166,32 @@ class XDAGibbs(EEGPreFun):
 
         x = list(self.time_range)
         gamma_mcmc_mean = np.around(gamma_mcmc_mean, decimals=3)
-        common_name = 'lda_select_'
+        # common_name = 'lda_select_'
 
         if 'convol' in sim_folder_name:
             if mcmc:
-                plot_name = common_name + 'convol_mcmc_mean_trn_' + str(self.trn_repetition)
+                plot_name = method_name + '_convol_mcmc_mean_trn_' + str(self.trn_repetition)
                 message = message + '_mcmc_trn_' + str(self.trn_repetition)
             else:
-                plot_name = common_name + 'convol_std_mean_trn_' + str(self.trn_repetition)
+                plot_name = method_name + '_convol_std_mean_trn_' + str(self.trn_repetition)
                 message = message + '_std_trn_' + str(self.trn_repetition)
         else:
             if mcmc:
-                plot_name = common_name + 'mcmc_mean_trn_' + str(self.trn_repetition)
+                plot_name = method_name + '_mcmc_mean_trn_' + str(self.trn_repetition)
                 message = message + '_mcmc_trn_' + str(self.trn_repetition)
             else:
-                plot_name = common_name + 'std_mean_trn_' + str(self.trn_repetition)
+                plot_name = method_name + '_std_mean_trn_' + str(self.trn_repetition)
                 message = message + '_std_trn_' + str(self.trn_repetition)
 
-        plot_pdf = bpdf.PdfPages('{}/{}/{}/{}.pdf'
+        plot_pdf = bpdf.PdfPages('{}/{}/{}/{}/{}_{}.pdf'
                                  .format(self.parent_path,
                                          self.data_type,
                                          sim_folder_name,
+                                         method_name,
+                                         sim_folder_name,
                                          plot_name))
         if mcmc:
-            for i in range(self.num_electrode):
+            for i in range(ee):
 
                 fig_1 = plt.figure(figsize=(12, 10))
                 ax1 = fig_1.add_subplot(2, 1, 1)
@@ -1429,7 +1223,7 @@ class XDAGibbs(EEGPreFun):
                 plt.close()
                 plot_pdf.savefig(fig_1)
         else:
-            for i in range(self.num_electrode):
+            for i in range(ee):
                 fig = plt.figure(figsize=(12, 10))
                 plt.plot(self.time_range, beta_tar[i, :, 0], 'r-.', label="tar_std")
                 plt.plot(self.time_range, beta_ntar[i, :, 0], 'b-.', label="ntar_std")
@@ -1454,8 +1248,8 @@ class XDAGibbs(EEGPreFun):
             self, eeg_signals_trun, eeg_code,
             delta_tar_i, delta_ntar_i,
             lambda_iter_i,
-            s_sq_i, rho_i, gamma_i,
-            phi_fn, trn_repetition, channel_ids=None
+            pres_mat_i, gamma_i,
+            phi_fn, trn_repetition, channel_ids, soft_bool=True
     ):
         r"""
         args:
@@ -1473,15 +1267,16 @@ class XDAGibbs(EEGPreFun):
                 mean_vector of non-target stimuli during iteration i, should have dimension
                 (num_electrode, self.n_length, 1)
             lambda_iter_i: array_like, (num_electrode,)
-            s_sq_i: array_like, (num_electrode,)
-            rho_i: array_like, (num_electrode,)
+            pres_mat_i: array_like, (num_electrode, n_length, n_length)
             gamma_i: array_like
-                selection indicator, should have the same dimension (num_electrode, self.n_length)
+                when soft_bool is true, selection indicator, should have the same dimension (num_electrode, n_length)
+                when soft_bool is false, it is fixed over i
             phi_fn: array_like
                 should have input shape (num_electrode, n_length, u)
             trn_repetition: integer
                 the number of sequence repetitions in the training set
             channel_ids: integer array_like
+            soft_bool: boolean variable, whether we need to remove the feature completely
 
         return:
         -----
@@ -1495,21 +1290,22 @@ class XDAGibbs(EEGPreFun):
         """
 
         lambda_iter_i = lambda_iter_i[:, np.newaxis, np.newaxis]
-        gamma_i_mat = self.block_diagonal_mat(gamma_i, channel_ids=channel_ids)
-        pres_mat_i = self.generate_proposal_ar1_pres_mat(s_sq_i, rho_i, channel_ids=channel_ids)
-        idns = self.identity_n[np.newaxis, ...]
-        # phi_fn_t = np.transpose(phi_fn, [0, 2, 1])
+        gamma_i_mat = self.block_diagonal_mat(gamma_i, channel_ids)
+        # pres_mat_i = self.generate_proposal_ar1_pres_mat(s_sq_i, rho_i, channel_ids=channel_ids)
 
-        a1_I_a0_gamma = self.a1 * idns + self.a0 * gamma_i_mat
-        a1_I_gamma = self.a1 * (idns - gamma_i_mat)
-        a0_I_a1_gamma = self.a0 * idns + self.a1 * gamma_i_mat
-        a0_I_gamma = self.a0 * (idns - gamma_i_mat)
-
-        # print('lambda_iter_i has shape {}'.format(lambda_iter_i.shape))
-        # print('phi_fn has shape {}'.format(phi_fn.shape))
-
-        mean_tar = lambda_iter_i * (a1_I_a0_gamma @ phi_fn @ delta_tar_i + a0_I_gamma @ phi_fn @ delta_ntar_i)
-        mean_ntar = lambda_iter_i * (a0_I_a1_gamma @ phi_fn @ delta_ntar_i + a1_I_gamma @ phi_fn @ delta_tar_i)
+        if soft_bool:
+            idns = self.identity_n[np.newaxis, ...]
+            a1_I_a0_gamma = self.a1 * idns + self.a0 * gamma_i_mat
+            a1_I_gamma = self.a1 * (idns - gamma_i_mat)
+            a0_I_a1_gamma = self.a0 * idns + self.a1 * gamma_i_mat
+            a0_I_gamma = self.a0 * (idns - gamma_i_mat)
+            mean_tar = lambda_iter_i * (a1_I_a0_gamma @ phi_fn @ delta_tar_i + a0_I_gamma @ phi_fn @ delta_ntar_i)
+            mean_ntar = lambda_iter_i * (a0_I_a1_gamma @ phi_fn @ delta_ntar_i + a1_I_gamma @ phi_fn @ delta_tar_i)
+        else:
+            # Directly use the beta mean and ignore the mixture model
+            pres_mat_i = gamma_i_mat @ pres_mat_i @ gamma_i_mat
+            mean_tar = lambda_iter_i * phi_fn @ delta_tar_i
+            mean_ntar = lambda_iter_i * phi_fn @ delta_ntar_i
 
         trun_diff_i_1 = eeg_signals_trun - mean_tar[np.newaxis, ...]
         trun_diff_i_0 = eeg_signals_trun - mean_ntar[np.newaxis, ...]
@@ -1534,12 +1330,10 @@ class XDAGibbs(EEGPreFun):
         l_mvn_1_ordered = np.stack(l_mvn_1_ordered, axis=1)
         l_mvn_0_ordered = np.stack(l_mvn_0_ordered, axis=1)
 
-        l_mvn_1_ordered = np.reshape(l_mvn_1_ordered, [self.num_letter,
-                                                       self.num_repetition,
-                                                       self.num_rep])
-        l_mvn_0_ordered = np.reshape(l_mvn_0_ordered, [self.num_letter,
-                                                       self.num_repetition,
-                                                       self.num_rep])
+        l_mvn_1_ordered = np.reshape(l_mvn_1_ordered,
+                                     [self.num_letter, self.num_repetition, self.num_rep])
+        l_mvn_0_ordered = np.reshape(l_mvn_0_ordered,
+                                     [self.num_letter, self.num_repetition, self.num_rep])
 
         log_lhd_row = np.zeros([self.num_letter, self.num_repetition, int(self.num_rep / 2)])
         log_lhd_col = np.zeros([self.num_letter, self.num_repetition, int(self.num_rep / 2)])
@@ -1585,9 +1379,9 @@ class XDAGibbs(EEGPreFun):
             self, eeg_signals_trun_all, eeg_code,
             delta_tar_mcmc, delta_ntar_mcmc,
             lambda_mcmc,
-            gamma_mcmc, s_sq_mcmc, rho_mcmc,
+            gamma_mcmc, s_sq_mcmc, rho_mcmc, emp_pres_mat,
             phi_fn, trn_repetition, target_letters,
-            channel_ids=None
+            channel_ids, soft_bool=True, q=1
     ):
         r"""
         args:
@@ -1603,58 +1397,79 @@ class XDAGibbs(EEGPreFun):
                 should have the input shape (mcmc_iterations, channel_dim, n_length, 1)
             lambda_mcmc: array_like
                 should have the input shape (mcmc_iterations, channel_dim)
+            gamma_mcmc: array_like
+                should have the input shape (mcmc_iterations, channel_dim, n_length)
             s_sq_mcmc: array_like
                 should have the input shape (mcmc_iterations, channel_dim)
             rho_mcmc: array_like
                 should have the input shape (mcmc_iterations, channel_dim)
-            gamma_mcmc: array_like
-                should have the input shape (mcmc_iterations, channel_dim, n_length)
+            emp_pres_mat: array_like,
+                should have input shape (channel_dim, n_length, n_length)
             phi_fn: array_like
                 should have the input shape (channel_dim, n_length, u)
             trn_repetition: integer
             burn_in: integer
             target_letters: list of characters, len(target_letters) = letter_dim
             channel_ids: a list of selected channel ids, indexing from 0 to num_electrode-1
+            soft_bool: boolean variable, whether we remove the noisy feature completely when we make predictions
+            q: autoregressive order
 
         return:
         -----
             A dict of prediction result including sampling number and
             probability of being predicted correctly
         """
+
         lda_accuracy = []
-        mcmc_iter = rho_mcmc.shape[0]
-        if channel_ids is not None:
-            print('The selected channels are {}'.format(channel_ids+1))
+        mcmc_iter = gamma_mcmc.shape[0]
+
+        if emp_pres_mat is None:
+            # fully bayesian framework
+            print('The selected channels are {}'.format(channel_ids + 1))
             eeg_signals_trun_all = eeg_signals_trun_all[:, channel_ids, ...]
             delta_tar_mcmc = delta_tar_mcmc[:, channel_ids, ...]
             delta_ntar_mcmc = delta_ntar_mcmc[:, channel_ids, ...]
             lambda_mcmc = lambda_mcmc[:, channel_ids]
             gamma_mcmc = gamma_mcmc[:, channel_ids, :]
             s_sq_mcmc = s_sq_mcmc[:, channel_ids]
-            rho_mcmc = rho_mcmc[:, channel_ids]
+            rho_mcmc = rho_mcmc[:, channel_ids, :]
             phi_fn = phi_fn[channel_ids, ...]
 
-            print('eeg_signals_trun_all has shape {}'.format(eeg_signals_trun_all.shape))
-            print('delta_tar_mcmc has shape {}'.format(delta_tar_mcmc.shape))
-            print('delta_ntar_mcmc has shape {}'.format(delta_ntar_mcmc.shape))
-            print('lambda_mcmc has shape {}'.format(lambda_mcmc.shape))
-            print('gamma_mcmc has shape {}'.format(gamma_mcmc.shape))
-            print('s_sq_mcmc has shape {}'.format(s_sq_mcmc.shape))
-            print('rho_mcmc has shape {}'.format(rho_mcmc.shape))
+            for i in range(mcmc_iter):
+                # print('i={}, kappa={}'.format(i, self.kappa))
+                pres_mat_i = self.generate_proposal_arq_pres_mat(
+                    s_sq_mcmc[i, :], rho_mcmc[i, ...], channel_ids, q
+                )
+                pred_matrix_i = self.lda_two_step_estimation_mcmc_i(
+                    eeg_signals_trun_all, eeg_code,
+                    delta_tar_mcmc[i, ...], delta_ntar_mcmc[i, ...],
+                    lambda_mcmc[i, :], pres_mat_i, gamma_mcmc[i, ...],
+                    phi_fn, trn_repetition, channel_ids, soft_bool=soft_bool
+                )
+                lda_accuracy.append(pred_matrix_i)
+        else:
+            # fix precision matrix with sample covariance matrix
+            print('The selected channels are {}'.format(channel_ids + 1))
+            eeg_signals_trun_all = eeg_signals_trun_all[:, channel_ids, ...]
+            delta_tar_mcmc = delta_tar_mcmc[:, channel_ids, ...]
+            delta_ntar_mcmc = delta_ntar_mcmc[:, channel_ids, ...]
+            lambda_mcmc = lambda_mcmc[:, channel_ids]
+            gamma_mcmc = gamma_mcmc[:, channel_ids, :]
+            phi_fn = phi_fn[channel_ids, ...]
 
-        for i in range(mcmc_iter):
-            # print('i={}, kappa={}'.format(i, self.kappa))
-            pred_matrix_i = self.lda_two_step_estimation_mcmc_i(
-                eeg_signals_trun_all, eeg_code,
-                delta_tar_mcmc[i, ...], delta_ntar_mcmc[i, ...],
-                lambda_mcmc[i, :], s_sq_mcmc[i, :], rho_mcmc[i, :], gamma_mcmc[i, ...],
-                phi_fn, trn_repetition, channel_ids=channel_ids
-            )
-            lda_accuracy.append(pred_matrix_i)
+            for i in range(mcmc_iter):
+                # print('i={}, kappa={}'.format(i, self.kappa))
+                pred_matrix_i = self.lda_two_step_estimation_mcmc_i(
+                    eeg_signals_trun_all, eeg_code,
+                    delta_tar_mcmc[i, ...], delta_ntar_mcmc[i, ...],
+                    lambda_mcmc[i, :], emp_pres_mat, gamma_mcmc[i, ...],
+                    phi_fn, trn_repetition, channel_ids, soft_bool=soft_bool
+                )
+                lda_accuracy.append(pred_matrix_i)
         lda_accuracy = np.stack(lda_accuracy, axis=0)
         print('lda_accuracy has shape {}'.format(lda_accuracy.shape))
-
         lda_accuracy_dist = np.zeros([self.letter_dim, self.num_repetition, self.letter_table_sum])
+
         for i_dist, i_letter in enumerate(self.letter_table):
             lda_accuracy_dist[..., i_dist] = np.around(np.mean((lda_accuracy == i_letter) * 1, axis=0), decimals=4)
 
@@ -1680,9 +1495,47 @@ class XDAGibbs(EEGPreFun):
         }
         return lda_bayes_result_dict
 
-    def save_mcmc_trace_plot(
-            self, rho_mcmc, s_sq_mcmc, lambda_mcmc, mcmc_log_lhd, gamma_mcmc_mean,
-            true_log_lhd, sim_folder_name
+    def save_empirical_bayes_mcmc_trace_plot(
+            self, lambda_mcmc, log_lhd_mcmc, gamma_mcmc_mean, channel_ids, true_log_lhd, sim_folder_name
+    ):
+        r"""
+
+        :param lambda_mcmc:
+        :param log_lhd_mcmc:
+        :param gamma_mcmc_mean:
+        :param true_log_lhd:
+        :param sim_folder_name:
+        :return:
+        """
+        ee = len(channel_ids)
+        plot_pdf = bpdf.PdfPages('{}/{}/{}/emp_bayes_lda/{}_emp_bayes_lda_select_mcmc_trace_plot_trn_{}.pdf'
+                                 .format(self.parent_path,
+                                         self.data_type,
+                                         sim_folder_name,
+                                         sim_folder_name,
+                                         self.trn_repetition))
+
+        # MCMC traceplot check
+        for i in range(ee):
+            fig_1 = plt.figure(figsize=(12, 12))
+            ax1 = fig_1.add_subplot(3, 1, 1)
+            ax1.plot(lambda_mcmc[:, i])
+            ax1.title.set_text('kernel-variance_channel_' + str(i + 1))
+
+            ax2 = fig_1.add_subplot(3, 1, 2)
+            ax2.plot(log_lhd_mcmc[:, i])
+            ax2.title.set_text('log_lhd_with_truth_{}_channel_{}'.format(true_log_lhd[i], i + 1))
+
+            ax3 = fig_1.add_subplot(3, 1, 3)
+            ax3.plot(gamma_mcmc_mean[i, :])
+            ax3.title.set_text('mean_selection_rate_channel_' + str(i + 1))
+            plt.close()
+            plot_pdf.savefig(fig_1)
+        plot_pdf.close()
+
+    def save_bayes_lda_mcmc_trace_plot(
+            self, rho_mcmc, s_sq_mcmc, lambda_mcmc, mcmc_log_lhd, gamma_mcmc_mean, channel_ids,
+            true_log_lhd, sim_folder_name, q
     ):
         r"""
 
@@ -1693,21 +1546,27 @@ class XDAGibbs(EEGPreFun):
         :param gamma_mcmc_mean: mean selection rate over MCMC iteratios, with shape (num_electrode, n_length)
         :param true_log_lhd: true log-likelihood, with shape (num_electrode,)
         :param sim_folder_name: string
+        :param q: autoregressive order
         :return:
             A systematic plot including traceplot of rho, sigma_sq, and kernel variance lambda,
             log-likelihood change, and mean selection rate across channels.
         """
-        plot_pdf = bpdf.PdfPages('{}/{}/{}/lda_select_mcmc_trace_plot_trn_{}.pdf'
+
+        ee = len(channel_ids)
+        plot_pdf = bpdf.PdfPages('{}/{}/{}/bayes_lda/{}_lda_select_mcmc_trace_plot_trn_{}.pdf'
                                  .format(self.parent_path,
                                          self.data_type,
                                          sim_folder_name,
+                                         sim_folder_name,
                                          self.trn_repetition))
         # MCMC traceplot check
-        for i in range(self.num_electrode):
+        for i in range(ee):
             fig_1 = plt.figure(figsize=(12, 12))
             ax1 = fig_1.add_subplot(3, 1, 1)
-            ax1.plot(rho_mcmc[:, i])
-            ax1.set_ylim(0, 1)
+            for qi in range(q):
+                ax1.plot(rho_mcmc[:, i, qi], label="order={}".format(qi+1))
+            ax1.legend(loc='upper right')
+            ax1.set_ylim(-1.1, 1.1)
             ax1.title.set_text('rho_channel_' + str(i + 1))
             ax2 = fig_1.add_subplot(3, 1, 2)
             ax2.plot(s_sq_mcmc[:, i])
@@ -1719,7 +1578,7 @@ class XDAGibbs(EEGPreFun):
             plot_pdf.savefig(fig_1)
 
         # log-likelihood traceplot and mean selection rate
-        for i in range(self.num_electrode):
+        for i in range(ee):
             fig_2 = plt.figure(figsize=(12, 12))
             ax1 = fig_2.add_subplot(2, 1, 1)
             ax1.plot(mcmc_log_lhd[:, i])
@@ -1727,14 +1586,15 @@ class XDAGibbs(EEGPreFun):
 
             ax2 = fig_2.add_subplot(2, 1, 2)
             ax2.plot(gamma_mcmc_mean[i, :])
+            ax2.set_ylim(-0.1, 1.1)
             ax2.title.set_text('mean_selection_rate_channel_' + str(i + 1))
             plt.close()
             plot_pdf.savefig(fig_2)
 
         plot_pdf.close()
 
-    def save_lda_bayes_results(self, new_lda_bayes_result,
-                               sub_folder_name, target_letters):
+    def save_lda_bayes_results(
+            self, new_lda_bayes_result, sub_folder_name, target_letters):
 
         file_dir = "{}/EEGBayesLDA/{}_lda_bayes_pred_select_trn_{}.csv"\
             .format(self.parent_path, sub_folder_name, self.trn_repetition)
@@ -1777,7 +1637,15 @@ class XDAGibbs(EEGPreFun):
 
                 f_writer.writerow([' '])
 
+    def determine_selected_feature_matrix(self, gamma_mean, thres_level, channel_ids):
 
+        r"""
+        :param gamma_mean: array_like, with input dimension (num_electrode, n_length)
+        :param thres_level: floating number between 0 and 1
+        :return: selected feature matrix with the same size as gamma_mean.
+        """
+        ee = len(channel_ids)
+        feature_mat = np.zeros([ee, self.n_length])
+        feature_mat[gamma_mean >= thres_level] = 1
 
-
-
+        return feature_mat
