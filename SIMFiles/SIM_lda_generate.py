@@ -8,7 +8,8 @@ print(os.getcwd())
 np.random.seed(612)
 
 sim_name = 'sim_'
-name_ids = 2020010400 + np.array([1, 2, 3, 4, 5]) + 25
+print('Remember to change the num_electrode_generate from the global file!')
+name_ids = 2020010200 + np.array([1, 2, 3, 4, 5]) + 15
 sigma_val = np.array([1, 10, 20, 30, 40])
 rho = 0.8
 display_plot = True  # for pseudo mean fn
@@ -24,7 +25,7 @@ PData = EEGGeneralFun(
 )
 
 x_input = np.array([0, 5, 10, 15, 24])
-y_input_similar_1 = np.array([0, 0, 4, 0, 0]) / mean_fn_scale
+y_input_similar_1 = np.array([0, 0, 5, 0, 0]) / mean_fn_scale
 y_input_similar_0 = np.array([0, 0, 1, 0, 0]) / mean_fn_scale
 plt.figure()
 _, similar_mean_fn_tar = PData.generate_canonical_eeg_signal(

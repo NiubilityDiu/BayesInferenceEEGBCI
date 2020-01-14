@@ -6,8 +6,8 @@ print(os.getcwd())
 # tf.compat.v1.random.set_random_seed(612)
 # np.random.seed(612)
 
-sim_ids = 2020010400 + np.array([1, 2, 3, 4, 5]) + 25
-num_electrodes = 3 * np.array([1, 1, 1, 1, 1])
+sim_ids = 2020010200 + np.array([1, 2, 3, 4, 5]) + 15
+num_electrodes = 2 * np.array([1, 1, 1, 1, 1])
 
 for i, sim_id in enumerate(sim_ids):
     sim_name = 'sim_' + str(sim_id)
