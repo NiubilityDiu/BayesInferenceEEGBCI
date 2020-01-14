@@ -9,9 +9,9 @@ print(os.getcwd())
 
 sim_note = 'std_bool={}, kappa={}'.format(gc.std_bool, gc.kappa)
 print(sim_note)
-trn_repetition = 15
-# sub_channel_ids = np.array([1, 2, 5]) - 1
-sub_channel_ids = np.arange(gc.num_electrode)
+trn_repetition = 5
+# channel_ids = np.array([5, 6, 7, 9, 10, 11, 12, 13, 14, 15, 16]) - 1
+channel_ids = None
 
 LDAGibbsObj = XDAGibbs(
     # hyper-parameters:
@@ -34,14 +34,9 @@ phi_val, phi_fn = LDAGibbsObj.create_gaussian_kernel_fn(
 )
 phi_val = np.tile(phi_val[:, np.newaxis], [1, gc.num_electrode])
 phi_fn = np.tile(phi_fn[np.newaxis, ...], [gc.num_electrode, 1, 1])
-# print('phi_val has shape {}'.format(phi_val.shape))
-# print('phi_fn has shape {}'.format(phi_fn.shape))
-
 phi_fn_inner_prod = np.transpose(phi_fn, [0, 2, 1]) @ phi_fn
 phi_fn_inner_prod_inv = LDAGibbsObj.compute_hermittan_matrix_inv(phi_fn_inner_prod)
 phi_fn_ols_operator = phi_fn_inner_prod_inv @ np.transpose(phi_fn, [0, 2, 1])
-# print('phi_fn_ols_operator has shape {}'.format(phi_fn_ols_operator.shape))
-
 # Import the training set without subsetting yet
 [signals, eeg_code, eeg_type] = LDAGibbsObj.import_eeg_processed_dat(gc.file_subscript, reshape_to_1d=False)
 
@@ -68,26 +63,23 @@ LDAGibbsObj.mu_1_delta = phi_fn_ols_operator @ np.zeros_like(train_tar_mean)
 LDAGibbsObj.mu_0_delta = phi_fn_ols_operator @ np.zeros_like(train_ntar_mean)
 
 # Compute preliminary s_sq_est
-s_sq_est = np.var(np.concatenate([train_x_mat_tar, train_x_mat_ntar], axis=0), axis=(0, 2))
+# s_sq_est = np.var(np.concatenate([train_x_mat_tar, train_x_mat_ntar], axis=0), axis=(0, 2))
+
 [delta_tar_mcmc, delta_ntar_mcmc,
  lambda_mcmc, gamma_mcmc,
- s_sq_mcmc, rho_mcmc,
- log_lhd_mcmc] = LDAGibbsObj.import_bayes_lda_mcmc()
+ log_lhd_mcmc, pres_mat_band] = LDAGibbsObj.import_empirical_bayes_lda_mcmc()
 
 delta_tar_mcmc_mean = np.mean(delta_tar_mcmc, axis=0)
 delta_ntar_mcmc_mean = np.mean(delta_ntar_mcmc, axis=0)
 lambda_mcmc_mean = np.mean(lambda_mcmc, axis=0)
 gamma_mcmc_mean = np.mean(gamma_mcmc, axis=0)
-s_sq_mcmc_mean = np.mean(s_sq_mcmc, axis=0)
-rho_mcmc_mean = np.mean(rho_mcmc, axis=0)
 
 message_eeg = gc.sub_file_name
 # Truncated mean with standardization
 LDAGibbsObj.save_lda_selection_indicator(
     train_tar_mean, train_ntar_mean,
     lambda_mcmc_mean, gamma_mcmc_mean,
-    message_eeg, gc.sub_file_name[:4], phi_fn,
-    gc.all_channel_ids, gc.method_name,
+    message_eeg, gc.sub_file_name[:4], phi_fn, method_name='emp_bayes_lda',
     threshold=gc.plot_threshold, mcmc=False
 )
 
@@ -104,42 +96,36 @@ LDAGibbsObj.save_lda_selection_indicator(
     delta_tar_mcmc_mean, delta_ntar_mcmc_mean,
     lambda_mcmc_mean, gamma_mcmc_mean,
     message_eeg, gc.sub_file_name[:4], phi_fn,
-    gc.all_channel_ids, gc.method_name,
-    threshold=gc.plot_threshold, mcmc=True,
-    beta_tar_lower=beta_tar_lower,
-    beta_tar_upper=beta_tar_upper,
-    beta_ntar_lower=beta_ntar_lower,
-    beta_ntar_upper=beta_ntar_upper
+    method_name='emp_bayes_lda', threshold=gc.plot_threshold, mcmc=True,
+    beta_tar_lower=beta_tar_lower, beta_tar_upper=beta_tar_upper,
+    beta_ntar_lower=beta_ntar_lower, beta_ntar_upper=beta_ntar_upper
 )
 
 # Visualize log-likelihood over MCMC iterations (we don't know the truth for real data, so I use 0 instead.)
 true_log_lhd = np.zeros([gc.num_electrode])
-LDAGibbsObj.save_bayes_lda_mcmc_trace_plot(
-    rho_mcmc, s_sq_mcmc, lambda_mcmc, log_lhd_mcmc, gamma_mcmc_mean,
-    gc.all_channel_ids, true_log_lhd, gc.sub_file_name[:4], gc.q
+LDAGibbsObj.save_empirical_bayes_mcmc_trace_plot(
+    lambda_mcmc, log_lhd_mcmc, gamma_mcmc_mean,
+    true_log_lhd, gc.sub_file_name[:4]
 )
 
 # classification
-gamma_mat_hard = LDAGibbsObj.determine_selected_feature_matrix(
-    gamma_mcmc_mean, gc.plot_threshold, gc.all_channel_ids)
-if len(sub_channel_ids) == gc.num_electrode:
-    print('There are {} features selected with threshold {}'.format(np.sum(gamma_mat_hard), gc.plot_threshold))
-else:
-    print('There are {} features selected with threshold {}'.format(np.sum(gamma_mat_hard[sub_channel_ids, :]),
-                                                                    gc.plot_threshold))
-
-if not gc.soft_bool:
+if not gc.soft_bool:  # hard-threshold removal
+    gamma_mat_hard = LDAGibbsObj.determine_selected_feature_matrix(gamma_mcmc_mean, gc.plot_threshold)
+    if channel_ids is None:
+        print('There are {} features selected with threshold {}'.format(np.sum(gamma_mat_hard), gc.plot_threshold))
+    else:
+        print('There are {} features selected with threshold {}'.format(np.sum(gamma_mat_hard[channel_ids, :]),
+                                                                        gc.plot_threshold))
     mcmc_length = gamma_mcmc.shape[0]
     gamma_mcmc = np.tile(gamma_mat_hard[np.newaxis, ...], [mcmc_length, 1, 1])
 
-# Here we may use sub_channel_ids to filter
 lda_bayes_result = LDAGibbsObj.produce_lda_bayes_result_dict(
     signals_all, eeg_code_3d,
     delta_tar_mcmc, delta_ntar_mcmc,
     lambda_mcmc,
-    gamma_mcmc, s_sq_mcmc, rho_mcmc, None,
+    gamma_mcmc, None, None, pres_mat_band,
     phi_fn, trn_repetition, gc.target_letters,
-    sub_channel_ids, gc.soft_bool, gc.q
+    channel_ids=channel_ids, soft_bool=gc.soft_bool
 )
 
 print('Proportion of correct prediction:')

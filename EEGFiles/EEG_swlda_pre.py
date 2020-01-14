@@ -25,7 +25,8 @@ EEGswLDAObj.print_sub_trn_info(gc.num_repetition)
 
 # Import the training set without subsetting yet
 [eeg_signals, eeg_code,
- eeg_type] = EEGswLDAObj.import_eeg_processed_dat(gc.file_subscript, reshape_to_1d=False)
+ eeg_type] = EEGswLDAObj.import_eeg_processed_dat(
+    gc.file_subscript, reshape_to_1d=False)
 
 # Produce truncated eeg signals subset
 eeg_signals_trun, eeg_type_sub = EEGswLDAObj.create_truncate_segment_batch(
@@ -67,7 +68,36 @@ EEGswLDAObj.produce_mean_covariance_plots(
 # Save the entire training sequence and
 # extended eeg_type/label for matlab usage.
 '''
+# Visualize the empirical presicion matrices over 16 channels.
+eeg_signals_trun_cov = np.stack([np.cov(eeg_signals_trun[:, i, :], rowvar=False)
+                                 for i in range(gc.num_electrode)], axis=0)
+eeg_signals_trun_pres = np.linalg.inv(eeg_signals_trun_cov)
+
+for i in range(gc.num_electrode):
+    print(EEGswLDAObj.is_pos_def(eeg_signals_trun_pres[i, ...]))
+
+plt.figure(figsize=(10, 10))
+plt.plot(eeg_signals_trun_pres[11, 0, :])
+plt.hlines(0.1 * eeg_signals_trun_pres[11, 0, 0], xmin=0, xmax=25, linestyles='-.')
+plt.hlines(-0.1 * eeg_signals_trun_pres[11, 0, 0], xmin=0, xmax=25, linestyles='-.')
+plt.title('Channel {}'.format(12))
+plt.show()
+
+plt.figure(figsize=(10, 10))
+plt.plot(eeg_signals_trun_pres[11, 4, :])
+plt.hlines(0.1 * eeg_signals_trun_pres[11, 4, 4], xmin=0, xmax=25, linestyles='-.')
+plt.hlines(-0.1 * eeg_signals_trun_pres[11, 4, 4], xmin=0, xmax=25, linestyles='-.')
+plt.title('Channel {}'.format(12))
+plt.show()
+
+plt.figure(figsize=(10, 10))
+plt.plot(eeg_signals_trun_pres[11, -1, :])
+plt.hlines(0.1 * eeg_signals_trun_pres[11, -1, -1], xmin=0, xmax=25, linestyles='-.')
+plt.hlines(-0.1 * eeg_signals_trun_pres[11, -1, -1], xmin=0, xmax=25, linestyles='-.')
+plt.title('Channel {}'.format(12))
+plt.show()
+'''
 EEGswLDAObj.save_trun_signal_1d_label(
     eeg_signals_trun, eeg_type_sub, gc.file_subscript)
-'''
+
 
