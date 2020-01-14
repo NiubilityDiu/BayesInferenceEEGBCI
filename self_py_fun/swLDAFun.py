@@ -17,7 +17,8 @@ class SWLDAPred(EEGPreFun):
         super(SWLDAPred, self).__init__(*args, **kwargs)
 
     def import_matlab_swlda_wts_trn_repetition(
-            self, trn_rep_dim, file_subscript):
+            self, trn_rep_dim, file_subscript
+    ):
         folder_dir = '{}/{}/{}/swlda_matlab/{}_swlda_wts_trn_rep_{}_{}.mat'\
             .format(self.parent_path,
                     self.data_type,
@@ -123,6 +124,7 @@ class SWLDAPred(EEGPreFun):
             eeg_signals_mean_0_sub.astype(self.DAT_TYPE),
             eeg_signals_cov_sub.astype(self.DAT_TYPE)
         ]
+
     '''
     def swlda_produce_two_step_estimation(
             self, eeg_signals_trun_sub, eeg_code,
@@ -224,6 +226,48 @@ class SWLDAPred(EEGPreFun):
 
         return letter_pred_matrix
     '''
+
+    def plot_swlda_select_feature(self, in_model, sim_folder_name, trn_repetition):
+        r"""
+
+        :param inmodel: array_like, (1, num_electrode * n_length)
+        :param sim_folder_name: string
+        :param trn_repetition: integer
+        :return: plot
+        """
+        in_model = np.reshape(in_model, [self.num_electrode, self.n_length])
+        plot_pdf = bpdf.PdfPages('{}/{}/{}/swlda_matlab/{}_swlda_feature_select_trn_{}.pdf'
+                                 .format(self.parent_path,
+                                         self.data_type,
+                                         sim_folder_name,
+                                         sim_folder_name,
+                                         trn_repetition))
+
+        # log-likelihood traceplot and mean selection rate
+        for i in range(int(self.num_electrode/4)):
+            fig_2 = plt.figure(figsize=(12, 12))
+            ax1 = fig_2.add_subplot(2, 2, 1)
+            ax1.plot(np.arange(self.n_length), in_model[4 * i, :])
+            ax1.set_ylim(-0.1, 1.1)
+            ax1.title.set_text('selected_feature_channel_' + str(4 * i + 1))
+
+            ax2 = fig_2.add_subplot(2, 2, 2)
+            ax2.plot(np.arange(self.n_length), in_model[4 * i + 1, :])
+            ax2.set_ylim(-0.1, 1.1)
+            ax2.title.set_text('selected_feature_channel_' + str(4 * i + 2))
+
+            ax3 = fig_2.add_subplot(2, 2, 3)
+            ax3.plot(np.arange(self.n_length), in_model[4 * i + 2, :])
+            ax3.set_ylim(-0.1, 1.1)
+            ax3.title.set_text('selected_feature_channel_' + str(4 * i + 3))
+
+            ax4 = fig_2.add_subplot(2, 2, 4)
+            ax4.plot(np.arange(self.n_length), in_model[4 * i + 3, :])
+            ax4.set_ylim(-0.1, 1.1)
+            ax4.title.set_text('selected_feature_channel_' + str(4 * i + 4))
+            plt.close()
+            plot_pdf.savefig(fig_2)
+        plot_pdf.close()
 
     def save_swlda_pred_results(self, new_swlda_result,
                                 sub_folder_name, trn_rep_dim):

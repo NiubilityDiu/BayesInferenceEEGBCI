@@ -2,15 +2,15 @@ import os
 import numpy as np
 import sys
 
-local_use = (sys.argv[1] == 'True')
-# local_use = True
+# local_use = (sys.argv[1] == 'True')
+local_use = True
 
 date_base_num = 2020010200
 
 sim_ids = date_base_num + np.arange(30) + 1
 if local_use:
     # sim_name_id = sys.argv[2]
-    sim_name_id = date_base_num + 6
+    sim_name_id = date_base_num + 18
 else:
     sim_name_id = sim_ids[int(os.environ.get('SLURM_ARRAY_TASK_ID'))]
 
@@ -25,6 +25,8 @@ elif sim_name_id <= date_base_num + 20:
     num_electrode = 2
 else:
     num_electrode = 3
+method_name = 'bayes_lda'
+channel_ids = np.arange(num_electrode)
 
 num_electrode_generate = 2
 
@@ -35,24 +37,26 @@ num_rep = 12
 total_stm_num = num_repetition * num_rep
 
 # Bayes LDA global/hyper-parameters
-u = 8
+u = 6
 alpha_s = 5.0
 beta_s = 5.0
 zeta_lambda = 1e-3 * np.ones([num_electrode])
-zeta_s = 1e-1 * np.ones([num_electrode])
-zeta_rho = 1e-4 * np.ones([num_electrode])
+zeta_s = 0.5 * np.ones([num_electrode])
+zeta_rho = 5e-4 * np.ones([num_electrode])
 ki = 0.4
-scale_1 = 0.2
-scale_2 = 0.15
+scale_1 = 0.05
+scale_2 = 0.05
 std_bool = False
-display_plot_bool = False
+display_plot_bool = True
+soft_bool = True
 beta_ising = 0.1
 gamma_neighbor = 2
 plot_threshold = 0.5
 a = 1  # weight for target
 b = 5  # weight for non-target
-kappa = 3200
+kappa = 300
 NUM_INTERVAL = 200
+q = 1
 
 # trn_repetition = 10
 # n_samples, n_burn_in = 200, 2000

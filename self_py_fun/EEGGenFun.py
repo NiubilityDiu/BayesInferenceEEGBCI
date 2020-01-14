@@ -284,43 +284,43 @@ class EEGGeneralFun:
 
         return times_and_tails, extended_eeg_signal
 
-    def write_and_save_letter_prob(
-            self, total_log_prob, truncate_index,
-            sub_folder_name, subset_index,
-            experiment_id, latent_z_type, mcmc_id,
-            mcmc_training_index, target_letter
-    ):
-        if subset_index > 1:
-            a_or_w = 'a'
-            # file-output.py
-            f = open('./Simulation/{}/latent_z_type_{}/experiment_id_{}/mcmc_id_{}/'
-                     'letter_{}_prediction.txt'
-                     .format(sub_folder_name, latent_z_type,
-                             experiment_id, mcmc_id, target_letter), a_or_w)
-            if subset_index == mcmc_training_index+1:
-                f.write('\n The testing probability is as follows:\n')
-            f.write('Use first {} sequences\n'.format(subset_index))
-
-        else:
-            a_or_w = 'w'
-            # file-output.py
-            f = open('./Simulation/{}/latent_z_type_{}/experiment_id_{}/mcmc_id_{}/'
-                     'letter_{}_prediction.txt'
-                     .format(sub_folder_name, latent_z_type,
-                             experiment_id, mcmc_id, target_letter), a_or_w)
-            f.write('This is study {} using MCMC samples truncated from {}:\n'
-                    .format(experiment_id, truncate_index))
-            f.write('Use first {} sequence\n'.format(subset_index))
-
-        [ordered_total_log_prob_, ordered_letter_table] = \
-            list(zip(*sorted(zip(total_log_prob, self.letter_table), reverse=True)))
-
-        print('ordered_letter_{}=\n{}'.format(subset_index, ordered_letter_table))
-        # print('ordered_log_prob_{}=\n{}'.format(subset_index, ordered_total_log_prob_))
-
-        f.write('ordered_letter=\n{}\n'.format(ordered_letter_table))
-        f.write('ordered_log_prob=\n{}\n'.format(ordered_total_log_prob_))
-        f.close()
+    # def write_and_save_letter_prob(
+    #         self, total_log_prob, truncate_index,
+    #         sub_folder_name, subset_index,
+    #         experiment_id, latent_z_type, mcmc_id,
+    #         mcmc_training_index, target_letter
+    # ):
+    #     if subset_index > 1:
+    #         a_or_w = 'a'
+    #         # file-output.py
+    #         f = open('./Simulation/{}/latent_z_type_{}/experiment_id_{}/mcmc_id_{}/'
+    #                  'letter_{}_prediction.txt'
+    #                  .format(sub_folder_name, latent_z_type,
+    #                          experiment_id, mcmc_id, target_letter), a_or_w)
+    #         if subset_index == mcmc_training_index+1:
+    #             f.write('\n The testing probability is as follows:\n')
+    #         f.write('Use first {} sequences\n'.format(subset_index))
+    #
+    #     else:
+    #         a_or_w = 'w'
+    #         # file-output.py
+    #         f = open('./Simulation/{}/latent_z_type_{}/experiment_id_{}/mcmc_id_{}/'
+    #                  'letter_{}_prediction.txt'
+    #                  .format(sub_folder_name, latent_z_type,
+    #                          experiment_id, mcmc_id, target_letter), a_or_w)
+    #         f.write('This is study {} using MCMC samples truncated from {}:\n'
+    #                 .format(experiment_id, truncate_index))
+    #         f.write('Use first {} sequence\n'.format(subset_index))
+    #
+    #     [ordered_total_log_prob_, ordered_letter_table] = \
+    #         list(zip(*sorted(zip(total_log_prob, self.letter_table), reverse=True)))
+    #
+    #     print('ordered_letter_{}=\n{}'.format(subset_index, ordered_letter_table))
+    #     # print('ordered_log_prob_{}=\n{}'.format(subset_index, ordered_total_log_prob_))
+    #
+    #     f.write('ordered_letter=\n{}\n'.format(ordered_letter_table))
+    #     f.write('ordered_log_prob=\n{}\n'.format(ordered_total_log_prob_))
+    #     f.close()
 
     def create_prior_effect_curve(self, n_length, initial_x, initial_y,
                                   spline_order, display_indicator):
@@ -731,3 +731,32 @@ class EEGGeneralFun:
                signals, eeg_code, eeg_type,\
                message
 
+    @staticmethod
+    def create_banded_psd_matrix(input_matrix, q):
+        r"""
+
+        :param input_matrix: usually covariance matrix or precision matrix,
+            (..., n_length, n_length)
+        :param q: positive integer, the autor-egressive integer q
+        :return: the banded matrix with the same shape as input_matrix
+            when |x - y| <= q, the values are the same, otherwise, the values are zero.
+        """
+
+        output_matrix = np.copy(input_matrix)
+        _, x, y = np.indices(input_matrix.shape)
+        output_matrix[np.abs(x - y) > q] = 0
+
+        return output_matrix
+
+    @staticmethod
+    def is_pos_def(input_matrix):
+        if np.allclose(input_matrix, input_matrix.T):
+            try:
+                np.linalg.cholesky(input_matrix)
+                return True
+            except np.linalg.LinAlgError:
+                print('I am symmetric but I fail Cholesky decomp.')
+                return False
+        else:
+            print('I am asymmetric.')
+            return False

@@ -28,12 +28,12 @@ letter_dim = 19
 serial_num = '001'
 exper_name = 'BCI'  # BCI, CMP...
 data_type = 'TRN'  # Choose among TRN_files, FRT_files and NOC_files
-n_multiple = 4
+n_multiple = 5
 sub_file_name = 'K' + str(K_num) + '_' + \
                 serial_num + '_' + \
                 exper_name + '_' + data_type
 data_type = data_type + '_files'
-method_name = 'qda' + '_python'  # Choose among qda, convol, or lda/swlda (to be continued)
+method_name = 'bayes_lda'
 file_subscript = 'down'
 # Choose among down or raw_trun
 # When do EEG_pre.py from scratch, set it to "raw_trun" first.
@@ -72,19 +72,22 @@ n_length = n_multiple * flash_and_pause_length
 u = 8
 alpha_s = 5.0
 beta_s = 5.0
+q = 2
+all_channel_ids = np.arange(num_electrode)
 zeta_lambda = 1e-4 * np.ones([num_electrode])
 zeta_s = 5e-3 * np.ones([num_electrode])
-zeta_rho = 1e-4 * np.ones([num_electrode])
+zeta_rho = 2e-3 * np.tile(np.array([[1, 0.1]]), [num_electrode, 1])
 ki = 0.4
 scale_1 = 0.2
 scale_2 = 0.2
 std_bool = False
 beta_ising = 0.1
 gamma_neighbor = 2
-plot_threshold = 0.5
+plot_threshold = 0.8
+soft_bool = False
 a = 1  # weight for target
 b = 5  # weight for non-target
-kappa = 3200
+kappa = 3601
 NUM_INTERVAL = 200
 
 # HMC Inference

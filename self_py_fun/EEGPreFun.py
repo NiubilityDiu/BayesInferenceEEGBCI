@@ -177,10 +177,12 @@ class EEGPreFun(EEGGeneralFun):
                 eeg_code, with shape (num_letter, num_repetition, num_rep)
                 eeg_type, with shape (num_letter, num_repetition, num_rep)
         """
-        eeg_dat = sio.loadmat('{}/{}/{}/{}_eeg_dat_{}.mat'
-                              .format(self.parent_path, self.data_type,
-                                      self.sub_folder_name[:4], self.sub_folder_name,
-                                      file_subscript))
+        file_path = '{}/{}/{}/{}_eeg_dat_{}.mat'\
+            .format(self.parent_path, self.data_type,
+                    self.sub_folder_name[:4], self.sub_folder_name,
+                    file_subscript)
+        print(file_path)
+        eeg_dat = sio.loadmat(file_path)
 
         eeg_keys, _ = zip(*eeg_dat.items())
         # print(eeg_keys)
@@ -191,12 +193,6 @@ class EEGPreFun(EEGGeneralFun):
         if reshape_to_1d:
             eeg_code = np.reshape(eeg_code, [self.num_letter*self.num_repetition*self.num_rep])
             eeg_type = np.reshape(eeg_type, [self.num_letter*self.num_repetition*self.num_rep])
-
-        # print('EEGPreFun: ')
-        # print('eeg_signals have shape {}'.format(eeg_signals.shape))
-        # print('eeg_code has shape {}'.format(eeg_code.shape))
-        # print('eeg_type has shape {}'.format(eeg_type.shape))
-
         return [eeg_signals, eeg_code, eeg_type]
 
     def create_truncate_segment(self, eeg_signals_subset, repetition_dim):
@@ -318,9 +314,9 @@ class EEGPreFun(EEGGeneralFun):
         eeg_signals_trun_nt_mean = np.mean(eeg_signals_trun_sub_nt, axis=0)
 
         # Examine sample covariance matrix
-        eeg_signals_trun_t_cov = np.stack([np.cov(eeg_signals_trun_sub_t[:, i, :])
+        eeg_signals_trun_t_cov = np.stack([np.cov(eeg_signals_trun_sub_t[:, i, :], rowvar=False)
                                            for i in range(self.num_electrode)], axis=0)
-        eeg_signals_trun_nt_cov = np.stack([np.cov(eeg_signals_trun_sub_nt[:, i, :])
+        eeg_signals_trun_nt_cov = np.stack([np.cov(eeg_signals_trun_sub_nt[:, i, :], rowvar=False)
                                            for i in range(self.num_electrode)], axis=0)
 
         return [eeg_signals_trun_t_mean, eeg_signals_trun_nt_mean,
