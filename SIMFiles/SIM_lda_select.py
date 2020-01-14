@@ -91,11 +91,12 @@ for _, trn_repetition in enumerate(trn_repetitions):
     LDAGibbsObj.mu_0_delta = phi_fn_ols_operator @ np.zeros_like(signals_train_ntar_mean)
     s_sq_est = np.var(signals_train, axis=(0, 2)) * 0.1
     print('s_sq_est = {}'.format(s_sq_est))
+
     # Initialize the parameters:
     [delta_tar_mcmc, delta_ntar_mcmc,
      lambda_mcmc, gamma_mcmc,
      s_sq_mcmc, rho_mcmc
-     ] = LDAGibbsObj.create_initial_values_lda(s_sq_est.T)
+     ] = LDAGibbsObj.create_initial_values_bayes_lda(s_sq_est.T)
 
     log_lhd_mcmc = []
 
@@ -110,7 +111,7 @@ for _, trn_repetition in enumerate(trn_repetitions):
         # s_sq_old = np.copy(np.array([10]))
         rho_old = np.copy(rho_mcmc[k, :])
         # rho_old = np.array([0.2])
-        pres_mat_old = LDAGibbsObj.generate_proposal_ar1_pres_mat(s_sq_old, rho_old)
+        pres_mat_old = LDAGibbsObj.generate_proposal_arq_pres_mat(s_sq_old, rho_old)
 
         # delta_tar_post = phi_fn_ols_operator @ true_beta_tar
         # delta_ntar_post = phi_fn_ols_operator @ true_beta_ntar
@@ -153,7 +154,7 @@ for _, trn_repetition in enumerate(trn_repetitions):
         )
         # rho_post = np.copy(rho_old)
 
-        pres_mat_post = LDAGibbsObj.generate_proposal_ar1_pres_mat(s_sq_post, rho_post)
+        pres_mat_post = LDAGibbsObj.generate_proposal_arq_pres_mat(s_sq_post, rho_post)
         log_lhd_mcmc_post = LDAGibbsObj.compute_sampling_log_lhd(
             delta_tar_post, delta_ntar_post,
             lambda_post, gamma_mat_iter,
@@ -242,7 +243,7 @@ for _, trn_repetition in enumerate(trn_repetitions):
     )
     print('true_log_lhd = {}'.format(true_log_lhd))
 
-    LDAGibbsObj.save_mcmc_trace_plot(
+    LDAGibbsObj.save_bayes_lda_mcmc_trace_plot(
         rho_mcmc, s_sq_mcmc, lambda_mcmc, log_lhd_mcmc, gamma_mcmc_mean,
         true_log_lhd, sim_name
     )
