@@ -31,7 +31,7 @@ print('eeg_signals have shape {}'.format(eeg_signals.shape))
 print('eeg_code has shape {}'.format(eeg_code.shape))
 print('eeg_type has shape {}'.format(eeg_type.shape))
 
-for trn_repetition in range(10, 11):
+for trn_repetition in range(15, 16):
     EEGswLDAObj.print_sub_trn_info(trn_repetition)
 
     # Produce truncated eeg signals subset
@@ -48,6 +48,8 @@ for trn_repetition in range(10, 11):
     # pval = swlda_wts_i['pval']
     # se = swlda_wts_i['se']
     # stats = swlda_wts_i['stats']
+
+    EEGswLDAObj.plot_swlda_select_feature(inmodel, gc.sub_file_name[:4], trn_repetition)
 
     print('The number of features selected by swLDA is {}'.format(np.sum(inmodel[0, :])))
     print('swLDA prediction 1:\n')
@@ -68,31 +70,32 @@ for trn_repetition in range(10, 11):
     print(eeg_signals_mean_1_sub.shape)
     print(eeg_signals_mean_0_sub.shape)
 
-    eeg_signals_trun_sub_2, _ = EEGswLDAObj.create_truncate_segment_batch(
-        np.squeeze(eeg_signals, axis=-1), None, letter_dim=gc.num_letter,
-        trn_repetition=gc.num_repetition)
-    section_num_2, _, _ = eeg_signals_trun_sub_2.shape
-
-    # print('eeg_signals_trun_sub_2 has shape {}'.format(eeg_signals_trun_sub_2.shape))
-    eeg_signals_trun_sub_2 = np.reshape(eeg_signals_trun_sub_2,
-                                        [section_num_2,
-                                         gc.num_electrode * gc.n_length])
-    eeg_signals_trun_sub_2 = eeg_signals_trun_sub_2[:, inmodel[0, :] == 1].astype(gc.DAT_TYPE)
-
-    pred_letter_mat_log_prob = EEGswLDAObj.swlda_produce_two_step_estimation(
-        eeg_signals_trun_sub_2, eeg_code,
-        eeg_signals_mean_1_sub, eeg_signals_mean_0_sub, eeg_signals_cov_sub, trn_repetition
-    )
-    swlda_accuracy_log_prob = [np.around(np.mean(pred_letter_mat_log_prob[:, i] == np.array(list(gc.target_letters))),
-                               decimals=2)
-                               for i in range(gc.num_repetition)]
-    print(swlda_accuracy_log_prob)
-
-    print('swLDA prediction 2:\n')
+    # eeg_signals_trun_sub_2, _ = EEGswLDAObj.create_truncate_segment_batch(
+    #     np.squeeze(eeg_signals, axis=-1), None, letter_dim=gc.num_letter,
+    #     trn_repetition=gc.num_repetition)
+    # section_num_2, _, _ = eeg_signals_trun_sub_2.shape
+    #
+    # # print('eeg_signals_trun_sub_2 has shape {}'.format(eeg_signals_trun_sub_2.shape))
+    # eeg_signals_trun_sub_2 = np.reshape(eeg_signals_trun_sub_2,
+    #                                     [section_num_2,
+    #                                      gc.num_electrode * gc.n_length])
+    # eeg_signals_trun_sub_2 = eeg_signals_trun_sub_2[:, inmodel[0, :] == 1]
+    #
+    # pred_letter_mat_log_prob = EEGswLDAObj.swlda_produce_two_step_estimation(
+    #     eeg_signals_trun_sub_2, eeg_code,
+    #     eeg_signals_mean_1_sub, eeg_signals_mean_0_sub, eeg_signals_cov_sub, trn_repetition
+    # )
+    # swlda_accuracy_log_prob = [np.around(np.mean(pred_letter_mat_log_prob[:, i] == np.array(list(gc.target_letters))),
+    #                            decimals=2)
+    #                            for i in range(gc.num_repetition)]
+    # print(swlda_accuracy_log_prob)
+    #
     # swLDA prediction directly
+    print('swLDA prediction 2:\n')
     eeg_signals_trun, _ = EEGswLDAObj.create_truncate_segment_batch(
         np.squeeze(eeg_signals, axis=-1), None, letter_dim=gc.num_letter,
         trn_repetition=gc.num_repetition)
+
     # Collapse the electrode dimension
     eeg_signals_trun = np.reshape(eeg_signals_trun,
                                   [gc.num_letter*gc.num_repetition*gc.num_rep,
