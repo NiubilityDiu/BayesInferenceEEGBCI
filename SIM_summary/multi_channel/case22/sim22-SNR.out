@@ -1,0 +1,502 @@
+We do nothing.
+signal_var = [5.39 1.89 0.98]
+observe_var = [44.66 41.23 37.64]
+Modified SNR % = [12.06  4.59  2.6 ]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.19 2.06 0.93]
+observe_var = [43.52 40.83 39.71]
+Modified SNR % = [9.64 5.04 2.35]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [3.81 1.98 0.91]
+observe_var = [43.87 42.2  39.52]
+Modified SNR % = [8.69 4.69 2.29]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.62 1.97 0.89]
+observe_var = [43.19 42.16 40.27]
+Modified SNR % = [10.69  4.68  2.2 ]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [5.01 2.5  1.13]
+observe_var = [43.67 42.13 40.71]
+Modified SNR % = [11.46  5.93  2.78]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [3.35 2.15 1.37]
+observe_var = [42.75 40.99 40.95]
+Modified SNR % = [7.84 5.25 3.33]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [5.5  2.11 1.14]
+observe_var = [44.55 42.37 39.39]
+Modified SNR % = [12.36  4.98  2.89]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.61 2.1  1.51]
+observe_var = [44.08 40.91 41.53]
+Modified SNR % = [10.47  5.14  3.64]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.47 2.12 1.39]
+observe_var = [45.28 42.48 41.46]
+Modified SNR % = [9.87 5.   3.35]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.34 2.06 0.77]
+observe_var = [42.74 40.97 38.9 ]
+Modified SNR % = [10.15  5.03  1.99]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.73 2.71 0.89]
+observe_var = [43.17 42.11 39.46]
+Modified SNR % = [10.96  6.43  2.26]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.19 1.7  0.89]
+observe_var = [42.82 40.51 40.05]
+Modified SNR % = [9.79 4.18 2.23]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.37 2.43 1.19]
+observe_var = [45.6  41.11 40.73]
+Modified SNR % = [9.59 5.91 2.91]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.17 1.42 0.87]
+observe_var = [42.45 39.02 39.41]
+Modified SNR % = [9.82 3.65 2.21]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [3.93 2.3  1.08]
+observe_var = [41.8  42.01 40.58]
+Modified SNR % = [9.39 5.46 2.67]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.94 2.02 0.78]
+observe_var = [44.5  43.56 40.01]
+Modified SNR % = [11.09  4.64  1.95]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.75 2.21 1.03]
+observe_var = [43.44 40.61 38.24]
+Modified SNR % = [10.93  5.44  2.69]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.64 2.34 0.71]
+observe_var = [44.81 41.75 40.36]
+Modified SNR % = [10.35  5.6   1.76]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.93 1.88 0.72]
+observe_var = [44.38 41.61 40.08]
+Modified SNR % = [11.1   4.53  1.8 ]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.17 1.64 1.04]
+observe_var = [43.51 40.7  39.7 ]
+Modified SNR % = [9.57 4.04 2.63]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.19 2.01 1.08]
+observe_var = [43.16 42.1  41.82]
+Modified SNR % = [9.71 4.78 2.59]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.44 1.96 1.78]
+observe_var = [43.8  39.91 39.83]
+Modified SNR % = [10.14  4.92  4.48]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.28 1.82 1.1 ]
+observe_var = [43.78 41.85 40.94]
+Modified SNR % = [9.77 4.34 2.69]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.45 2.06 0.94]
+observe_var = [43.87 42.6  40.5 ]
+Modified SNR % = [10.14  4.84  2.33]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.16 1.75 0.93]
+observe_var = [44.57 40.71 39.95]
+Modified SNR % = [9.33 4.29 2.32]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.34 2.11 0.65]
+observe_var = [44.38 40.92 40.24]
+Modified SNR % = [9.79 5.16 1.61]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.91 2.68 1.58]
+observe_var = [44.33 42.44 40.09]
+Modified SNR % = [11.07  6.32  3.95]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.06 2.19 0.81]
+observe_var = [43.26 41.13 38.86]
+Modified SNR % = [9.39 5.32 2.08]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.65 1.94 0.85]
+observe_var = [42.8  40.24 40.1 ]
+Modified SNR % = [10.85  4.83  2.13]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [5.88 2.27 0.81]
+observe_var = [44.02 40.12 40.67]
+Modified SNR % = [13.36  5.66  1.98]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.66 1.83 1.16]
+observe_var = [44.92 41.18 41.48]
+Modified SNR % = [10.39  4.45  2.81]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.73 2.08 0.96]
+observe_var = [44.14 40.29 40.65]
+Modified SNR % = [10.71  5.15  2.37]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [5.12 1.92 0.7 ]
+observe_var = [42.9  40.98 40.58]
+Modified SNR % = [11.94  4.7   1.72]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [5.74 2.35 1.13]
+observe_var = [44.51 41.5  40.23]
+Modified SNR % = [12.91  5.67  2.82]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.87 1.95 1.3 ]
+observe_var = [44.34 41.44 39.79]
+Modified SNR % = [10.98  4.71  3.28]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.65 1.8  1.18]
+observe_var = [44.59 40.17 40.12]
+Modified SNR % = [10.43  4.48  2.93]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.63 1.61 0.79]
+observe_var = [44.5  40.24 39.59]
+Modified SNR % = [10.41  4.01  2.  ]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.65 2.   1.04]
+observe_var = [43.65 42.99 41.7 ]
+Modified SNR % = [10.64  4.65  2.5 ]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.67 1.89 0.87]
+observe_var = [42.92 41.   39.61]
+Modified SNR % = [10.87  4.62  2.2 ]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [5.03 2.35 1.25]
+observe_var = [44.51 41.08 40.14]
+Modified SNR % = [11.31  5.72  3.12]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [5.59 2.13 0.97]
+observe_var = [44.82 41.44 41.85]
+Modified SNR % = [12.47  5.14  2.32]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.32 2.07 0.76]
+observe_var = [43.74 41.39 41.14]
+Modified SNR % = [9.88 4.99 1.84]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.86 1.69 0.82]
+observe_var = [42.98 40.11 39.49]
+Modified SNR % = [11.31  4.22  2.09]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.52 2.4  1.1 ]
+observe_var = [45.49 40.42 41.15]
+Modified SNR % = [9.94 5.94 2.67]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [5.17 2.57 1.01]
+observe_var = [43.61 40.49 39.1 ]
+Modified SNR % = [11.86  6.34  2.59]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.62 1.58 0.76]
+observe_var = [43.36 39.66 38.68]
+Modified SNR % = [10.65  3.99  1.96]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.74 1.93 0.93]
+observe_var = [44.   41.96 40.23]
+Modified SNR % = [10.77  4.6   2.31]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.97 1.64 1.29]
+observe_var = [44.23 41.85 41.31]
+Modified SNR % = [11.25  3.91  3.13]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.16 1.81 0.81]
+observe_var = [42.75 40.1  39.7 ]
+Modified SNR % = [9.72 4.5  2.03]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.65 1.8  0.84]
+observe_var = [45.71 41.73 39.63]
+Modified SNR % = [10.17  4.31  2.12]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.47 1.9  0.83]
+observe_var = [44.64 40.85 39.98]
+Modified SNR % = [10.02  4.65  2.09]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.17 1.43 1.03]
+observe_var = [42.12 41.03 38.55]
+Modified SNR % = [9.9  3.5  2.68]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [5.68 2.22 1.36]
+observe_var = [43.69 41.74 39.67]
+Modified SNR % = [12.99  5.33  3.43]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.76 1.81 0.91]
+observe_var = [43.93 41.34 40.06]
+Modified SNR % = [10.83  4.37  2.26]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.82 1.98 0.95]
+observe_var = [42.6  40.58 39.15]
+Modified SNR % = [11.32  4.88  2.42]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [5.11 1.92 0.98]
+observe_var = [45.24 42.26 41.  ]
+Modified SNR % = [11.3   4.54  2.39]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.82 2.25 1.19]
+observe_var = [43.68 41.34 41.72]
+Modified SNR % = [11.03  5.45  2.85]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.68 1.97 1.28]
+observe_var = [43.79 41.93 39.75]
+Modified SNR % = [10.7   4.7   3.22]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.96 1.87 1.26]
+observe_var = [43.65 39.07 38.74]
+Modified SNR % = [11.36  4.79  3.25]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.62 2.1  0.75]
+observe_var = [45.93 42.17 39.89]
+Modified SNR % = [10.06  4.98  1.87]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.55 2.13 0.81]
+observe_var = [43.66 41.83 41.82]
+Modified SNR % = [10.43  5.1   1.93]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.4  2.22 0.93]
+observe_var = [44.19 41.   39.87]
+Modified SNR % = [9.96 5.41 2.33]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.47 1.46 0.85]
+observe_var = [43.29 39.22 38.11]
+Modified SNR % = [10.32  3.72  2.22]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.7  2.14 0.78]
+observe_var = [43.61 42.06 40.3 ]
+Modified SNR % = [10.79  5.09  1.94]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.45 1.74 0.87]
+observe_var = [43.71 40.78 39.61]
+Modified SNR % = [10.17  4.26  2.2 ]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.91 1.77 0.83]
+observe_var = [43.05 40.62 40.08]
+Modified SNR % = [11.4   4.35  2.08]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [5.22 2.29 1.05]
+observe_var = [44.23 41.9  39.74]
+Modified SNR % = [11.79  5.47  2.65]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [5.09 1.64 0.84]
+observe_var = [42.44 39.31 39.64]
+Modified SNR % = [12.    4.18  2.12]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.82 2.29 0.77]
+observe_var = [42.35 41.58 39.5 ]
+Modified SNR % = [11.39  5.51  1.94]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.97 2.16 0.93]
+observe_var = [44.08 41.88 39.67]
+Modified SNR % = [11.28  5.16  2.34]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.82 2.01 1.54]
+observe_var = [45.11 41.53 41.53]
+Modified SNR % = [10.7   4.84  3.71]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [5.47 2.09 1.09]
+observe_var = [44.07 40.25 40.9 ]
+Modified SNR % = [12.42  5.19  2.67]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [5.52 2.27 1.27]
+observe_var = [46.55 43.76 41.82]
+Modified SNR % = [11.86  5.19  3.03]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [3.63 1.85 0.78]
+observe_var = [42.48 40.58 39.85]
+Modified SNR % = [8.55 4.55 1.96]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [5.2  2.75 1.26]
+observe_var = [44.77 43.16 39.93]
+Modified SNR % = [11.61  6.38  3.17]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.83 1.73 0.67]
+observe_var = [45.46 40.54 40.44]
+Modified SNR % = [10.62  4.27  1.66]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [3.56 1.66 1.14]
+observe_var = [41.83 42.24 39.85]
+Modified SNR % = [8.52 3.93 2.87]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.78 2.41 0.87]
+observe_var = [45.31 44.67 40.75]
+Modified SNR % = [10.56  5.38  2.13]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [3.98 2.28 1.19]
+observe_var = [44.66 41.6  40.53]
+Modified SNR % = [8.92 5.47 2.93]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.82 1.76 1.09]
+observe_var = [44.63 42.   41.05]
+Modified SNR % = [10.79  4.2   2.65]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [5.04 1.83 0.61]
+observe_var = [42.8  40.72 39.35]
+Modified SNR % = [11.78  4.48  1.54]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [5.34 2.11 0.92]
+observe_var = [43.65 40.55 40.7 ]
+Modified SNR % = [12.24  5.21  2.25]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.6  2.58 0.9 ]
+observe_var = [44.   42.57 40.58]
+Modified SNR % = [10.46  6.07  2.22]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.32 2.66 0.96]
+observe_var = [43.14 38.9  39.56]
+Modified SNR % = [10.02  6.85  2.43]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.33 1.79 0.79]
+observe_var = [43.35 40.45 37.94]
+Modified SNR % = [10.    4.43  2.09]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.17 2.5  0.82]
+observe_var = [41.42 40.74 39.  ]
+Modified SNR % = [10.06  6.15  2.11]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.12 1.8  1.11]
+observe_var = [45.38 41.42 39.29]
+Modified SNR % = [9.09 4.34 2.83]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.35 1.97 0.73]
+observe_var = [42.33 40.74 38.35]
+Modified SNR % = [10.27  4.85  1.91]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [5.38 2.26 0.94]
+observe_var = [42.3  41.23 40.12]
+Modified SNR % = [12.73  5.49  2.34]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [5.37 2.25 1.12]
+observe_var = [43.35 40.86 40.03]
+Modified SNR % = [12.4  5.5  2.8]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.82 2.15 0.97]
+observe_var = [43.71 40.46 41.77]
+Modified SNR % = [11.04  5.32  2.32]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.82 1.83 1.08]
+observe_var = [44.66 41.11 40.1 ]
+Modified SNR % = [10.8   4.44  2.68]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.41 1.58 1.08]
+observe_var = [44.21 41.5  39.13]
+Modified SNR % = [9.97 3.8  2.77]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [5.32 1.75 0.89]
+observe_var = [44.98 40.67 39.71]
+Modified SNR % = [11.83  4.31  2.24]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.55 2.38 0.89]
+observe_var = [42.97 41.84 39.73]
+Modified SNR % = [10.58  5.7   2.24]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [5.44 1.74 1.3 ]
+observe_var = [46.02 40.9  38.95]
+Modified SNR % = [11.82  4.26  3.33]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.29 1.85 1.19]
+observe_var = [44.19 42.03 40.46]
+Modified SNR % = [9.72 4.4  2.94]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [3.66 1.4  0.84]
+observe_var = [41.79 39.13 38.57]
+Modified SNR % = [8.76 3.57 2.17]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.91 2.09 0.87]
+observe_var = [43.64 41.06 39.58]
+Modified SNR % = [11.25  5.09  2.21]
+Channel Rank by SNR = [1 2 3]
+We do nothing.
+signal_var = [4.25 1.89 0.94]
+observe_var = [43.68 42.91 41.18]
+Modified SNR % = [9.73 4.41 2.28]
+Channel Rank by SNR = [1 2 3]
+[10.66078108  4.90333731  2.48180766]
+[1.04749673 0.6808198  0.52970001]
